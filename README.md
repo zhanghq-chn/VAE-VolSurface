@@ -1,3 +1,12 @@
-**Index Options Volatility Surface fitting with Variational Autoencoders**
+# Volatility Surface fitting with Variational Autoencoders**
 
-reference: Variational Autoencoders: A Hands-Off Approach to Volatility
+## Installation
+
+```shell
+conda env create -f environment.yml
+conda activate vae-volsurface
+```
+
+## Reference
+
+- Variational Autoencoders: A Hands-Off Approach to Volatility

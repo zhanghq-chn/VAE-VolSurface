@@ -1,0 +1,35 @@
+name: vae-volsurface
+channels:
+  - conda-forge
+dependencies:
+  # Python version
+  - python=3.10
+  
+  # PyTorch with GPU support (comment out if using CPU)
+  - pytorch>=2.5
+  - torchvision
+  # - torchaudio
+  
+  # Data Science Libraries
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - statsmodels
+  - numba
+  
+  # Visualization
+  - matplotlib
+  - seaborn
+  
+  # Deep Learning Utils
+  - tqdm
+  - tensorboard
+  
+  # Jupyter Notebook
+  - jupyterlab
+  
+  # Workflow Management
+  - poetry
+  - nox
+  - pre_commit
