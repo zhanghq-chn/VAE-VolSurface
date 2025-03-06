@@ -79,8 +79,8 @@ CREATE TABLE IF NOT EXISTS fwdprc (
 );
 
 CREATE TABLE IF NOT EXISTS rate (
-    date TEXT, 
-    days INTEGER, 
+    date TEXT,
+    days INTEGER,
     rate REAL
 );
 
