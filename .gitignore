@@ -170,6 +170,26 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# LaTeX intermediate files
+*.aux
+*.bit
+*.blg
+*.bbl
+*.lof
+*.log
+*.lot
+*.glo
+*.glx
+*.gxg
+*.gxs
+*.idx
+*.ilg
+*.ind
+*.out
+*.url
+*.svn
+*.toc
+
 # MacOS
 .DS_Store
 .AppleDouble
