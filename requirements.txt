@@ -1,0 +1,32 @@
+# Python version (not strictly enforced in pip)
+# python==3.10
+
+# PyTorch (GPU support depends on installation method)
+torch>=2.5
+torchvision
+# torchaudio  # Uncomment if needed
+
+# Data Science Libraries
+numpy
+pandas
+scipy
+scikit-learn
+statsmodels
+numba
+
+# Visualization
+matplotlib
+seaborn
+
+# Deep Learning Utils
+tqdm
+tensorboard
+
+# Jupyter Notebook
+jupyterlab
+
+# Workflow Management
+poetry
+nox
+pre-commit
+
