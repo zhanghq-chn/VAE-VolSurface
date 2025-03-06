@@ -1,4 +1,4 @@
-# Volatility Surface fitting with Variational Autoencoders**
+# Volatility Surface fitting with Variational Autoencoders
 
 ## Configuration
 
