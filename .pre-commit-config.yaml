@@ -1,0 +1,23 @@
+repos:
+  # Basic checks (trailing whitespace)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0  # Use the latest version or specify as needed
+    hooks:
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: mixed-line-ending
+      - id: check-ast
+      - id: check-added-large-files
+        exclude_types: [pdf, jupyter]
+
+  # Ruff linter with specific checks and bugbear, isort, ruff, and pyupgrade plugins
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.1  # Use the latest version or specify as needed
+    hooks:
+      - id: ruff
+        types_or: [python, pyi]
+        args: [--fix, --show-fixes]  # Automatically format files
+      - id: ruff-format
+        types_or: [python, pyi]
