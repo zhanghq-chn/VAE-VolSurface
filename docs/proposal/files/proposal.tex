@@ -19,7 +19,7 @@
 
 
 \title{Fitting Volatility Surfaces of Index Options Using Variational Autoencoders (VAE)\\
-\begin{large} 
+\begin{large}
 COS 513 -- Spring 2025 -- Project Proposal
 \end{large} }
 
@@ -71,9 +71,9 @@ We follow the structure in \cite{vaeorigin} to construct the VAE in two ways: th
 
 \section{Expected Challenges}
 
-Several challenges are anticipated in this project. 
+Several challenges are anticipated in this project.
 \paragraph{Ensuring data quality}
-One of the primary difficulties is ensuring data quality, particularly in handling missing or noisy volatility values while maintaining an arbitrage-free surface. Prices of illiquid options may not reflect the true market expectation of future volatility. Also, restricted by data source availability, our data does not contain trade prices, while only providing best bid, best ask, and last trade date, which may bring difficulties in the accuracy of estimation. 
+One of the primary difficulties is ensuring data quality, particularly in handling missing or noisy volatility values while maintaining an arbitrage-free surface. Prices of illiquid options may not reflect the true market expectation of future volatility. Also, restricted by data source availability, our data does not contain trade prices, while only providing best bid, best ask, and last trade date, which may bring difficulties in the accuracy of estimation.
 
 \paragraph{Hyperparameter tuning} Hyperparameter tuning is another challenge, as optimizing the trade-off between reconstruction loss and KL divergence is critical for meaningful latent space representation. Also, we need to choose the distribution and dimension of the latent space in VAEs carefully to achieve best performance with lower computation cost.
 
@@ -83,7 +83,7 @@ One of the primary difficulties is ensuring data quality, particularly in handli
 
 
 \bibliographystyle{plainnat}  % Choose citation style: plainnat, abbrvnat, etc.
-\bibliography{ref} 
+\bibliography{ref}
 
 
 \end{document}
