@@ -197,3 +197,10 @@ cython_debug/
 
 # vscode
 .vscode/
+
+# Large files
+*.csv
+*.xlsx
+*.xls
+*.db
+*.pdf
