@@ -61,9 +61,7 @@ Our project seeks to evaluate how VAEs can enhance volatility modeling by captur
 
 \section{Methodologies}
 \paragraph{Variational Autoencoder (VAE)}
-Our project will employ a VAE framework(see fig.\ref{fig:a}) to model the SPX implied volatility surface. The VAE will be trained with an encoder-decoder structure, where the encoder maps the volatility surface into a latent space distribution, and the decoder reconstructs the surface from sampled latent variables. The training objective will balance reconstruction loss and Kullback-Leibler (KL) divergence to enforce meaningful latent representations.
-
-We follow the structure in \cite{vaeorigin} to construct the VAEs in two ways: the \textbf{grid-based} approach and the \textbf{pointwise} approach(see fig.\ref{fig:b}).
+Our project will employ a VAE framework(see fig.\ref{fig:a}) to model the SPX implied volatility surface. The VAE will be trained with an encoder-decoder structure, where the encoder maps the volatility surface into a latent space distribution, and the decoder reconstructs the surface from sampled latent variables. The training objective will balance reconstruction loss and Kullback-Leibler (KL) divergence to enforce meaningful latent representations. We follow the structure in \cite{vaeorigin} to construct the VAEs in two ways: the \textbf{grid-based} approach and the \textbf{pointwise} approach(see fig.\ref{fig:b}).
 
 \paragraph{Latent Diffusion Models(LDMs)}
 To further enhance the performance, we will adopt a hybrid approach. LDMs in \cite{rombach2022highresolutionimagesynthesislatent} apply diffusion-based denoising techniques in the latent space rather than directly on high-dimensional volatility data, so we expect LDMs can  improve the quality of generated surfaces(i.e., robust extrapolation, reduced) while maintaining computational efficiency. Performance comparisons will be conducted to assess whether LDM-enhanced VAEs provide a superior alternative to standalone VAE and traditional parametric methods.
@@ -73,27 +71,39 @@ To further enhance the performance, we will adopt a hybrid approach. LDMs in \ci
 \paragraph{Evaluation} Once trained, the performance of our model will be evaluated through reconstruction error, interpolation accuracy, and generalization ability across different market conditions. The model’s output will be benchmarked against traditional stochastic models like Heston \cite{wolfram_volsurface_heston} and SABR \cite{wolfram_volsurface_sabr} to assess its viability as an alternative approach.
 
 \section{Data}
-\paragraph{Source} Wharton Research Data Services (WRDS) \todo{Detailed description}
-\paragraph{Statistics}  \todo{Add statistics here}
+\paragraph{Source} We initially focus on SPX option price data from 20220831 to 20230831 (We plan to include more data if it's required by the model training process). The data is available from  Wharton Research Data Services (WRDS). Key features include implied volatility, strike price, expiration date, best bid and best offer, etc.
+\paragraph{Statistics} Since the original dataset consists of some extremely low liquidity options and some missing values, we conduct a cleaning process by keeping data with positive bid price, spread, open interest, and volume. We also filtered out extremely deep ITM and OTM options (whose absolute value of delta is not within 1\% and 99\% quantile). The summary statistics are exhibited in Table \ref{tab:sm_stats}. One thing to note is that we have more put data than call, and the put data is more OTM. Additionally, we pick up 4 options with the highest trading volume and plot their volatility surface in Figure \ref{fig:vol_surface}.
 
 
-%The dataset consists of SPX index option data, specifically focusing on implied volatilities as a function of strike price and time to maturity. The dataset spans multiple years, capturing historical market conditions and structural changes in volatility dynamics. Key features include implied volatility, strike price, expiration date, and spot price. The data is sourced from historical options markets and is structured to provide a comprehensive view of volatility surface evolution. Given the challenges of missing data in implied volatilities, preprocessing steps will be necessary to ensure a clean and arbitrage-free dataset suitable for deep learning models.
+\begin{table}[h]
+    \centering
+    \textbf{Panel A: Call Options}
+    \resizebox{\textwidth}{!}{\input{tab/put_call_stats_c}}
+    \vspace{5pt}
+    
+    \textbf{Panel B: Put Options}
+    \resizebox{\textwidth}{!}{\input{tab/put_call_stats_p}}
+    \vspace{5pt}
+    
+    \caption{Summary statistics of individual options}
+    \label{tab:sm_stats}
+\end{table}
+
 
 
 \section{Expected Challenges}
 
 Several challenges are anticipated in our project.
 \paragraph{Ensuring data quality}
-One of the primary difficulties is ensuring data quality, particularly in handling missing or noisy volatility values while maintaining an arbitrage-free surface. Prices of illiquid options may not reflect the true market expectation of future volatility. Also, restricted by data source availability, our data does not contain trade prices, while only providing best bid, best ask, and last trade date, which may bring difficulties in the accuracy of estimation.
+Restricted by data source availability, our data does not contain trade prices, while only providing best bid, best ask, and last trade date, which may bring difficulties in the accuracy of estimation.
 
 \paragraph{Hyperparameter tuning} Hyperparameter tuning is another challenge, as optimizing the trade-off between reconstruction loss and KL divergence is critical for meaningful latent space representation. Also, we need to choose the distribution and dimension of the latent space in VAEs carefully to achieve best performance with lower computation costs.
 
 \paragraph{Generalization across various market conditions}
  As financial markets exhibit regime shifts that may not be fully captured by historical data, our VAEs model may not generalize to new regimes and it can be computationally intensive to fit new models as market changes instantly.
 
-\paragraph{Explainability of Latent Space}
+\paragraph{Interpretability of Latent Space}
 Understanding how each latent dimension corresponds to market phenomena is nontrivial. Unlike traditional parametric models where each parameter has an explicit financial interpretation (e.g., volatility of volatility in the Heston model), the latent factors in a VAE are learned in an unsupervised manner, making their financial meaning opaque.
-\paragraph{Lack of Data}
 
 
 \newpage
@@ -123,6 +133,38 @@ Understanding how each latent dimension corresponds to market phenomena is nontr
     \includegraphics[width=0.6\linewidth]{img/vae_vol.png}
     \caption{Architectures of grid-based and pointwise method}
     \label{fig:b}
+\end{figure}
+
+
+\begin{figure}[!h]
+    \centering
+    \begin{subfigure}{0.49\textwidth} % 1st subplot
+        \centering
+        \includegraphics[width=\linewidth]{img/vol_surface_20220923.png}
+        \caption{Sep 23, 2022}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.49\textwidth} % 2nd subplot
+        \centering
+        \includegraphics[width=\linewidth]{img/vol_surface_20230310.png}
+        \caption{Mar 10, 2023}
+    \end{subfigure}
+
+    \vspace{0.5cm} % Vertical space
+
+    \begin{subfigure}{0.49\textwidth} % 3rd subplot
+        \centering
+        \includegraphics[width=\linewidth]{img/vol_surface_20230602.png}
+        \caption{Jun 2, 2023}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.49\textwidth} % 4th subplot
+        \centering
+        \includegraphics[width=\linewidth]{img/vol_surface_20230630.png}
+        \caption{Jun 30, 2023}
+    \end{subfigure}
+    \caption{Example Volatility Surfaces with the Largest Trading Volume}
+    \label{fig:vol_surface}
 \end{figure}
 
 \end{document}
