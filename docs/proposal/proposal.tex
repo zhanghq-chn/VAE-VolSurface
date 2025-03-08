@@ -1,7 +1,7 @@
 
 \documentclass{article}
 
-\usepackage[preprint]{neurips_2023}
+\usepackage[preprint, nonatbib]{neurips_2023}
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
 \usepackage{hyperref}       % hyperlinks
@@ -15,10 +15,13 @@
 \usepackage{subcaption}
 \usepackage{enumitem}
 % customized lists
-\usepackage{natbib}
+\usepackage[backend=biber, style=ieee, url=false]{biblatex}
+\addbibresource{ref.bib}
 
 
 \newcommand{\todo}[1]{\fbox{\textcolor{red}{\bfseries #1} }}%
+\newcommand{\figref}[1]{Figure \ref{#1}}
+\newcommand{\tabref}[1]{Table \ref{#1}}
 
 
 \title{Generating Volatility Surfaces of Index Options Using Variational Autoencoders (VAE)\\
@@ -57,13 +60,13 @@ Princeton University \\
 
 Volatility modeling is crucial in financial markets, as it underpins option pricing, risk management, and trading strategies. The implied volatility surface, which represents the market's expectations of future volatility across different strike prices and maturities, is fundamental to these applications. However, existing modeling methodologies have limitations. Parametric models like Heston and SABR rely on specific assumptions that may not generalize well across varying market conditions. Moreover, market-implied volatilities often contain missing or noisy data, requiring robust interpolation and extrapolation techniques. Given the advancements in generative models, methods like VAEs and LDMs provide a compelling alternative by learning a structured, low-dimensional representation of volatility surfaces without explicit assumptions about their shape.\\
 
-Our project seeks to evaluate how VAEs can enhance volatility modeling by capturing latent structures and improving both interpolation and extrapolation capabilities. Additionally, we aim to analyze how these latent structures reflect underlying market conditions, providing deeper insights into volatility dynamics. Furthermore, we will explore the integration of VAEs with diffusion models, specifically Latent Diffusion Models (LDMs), to assess whether this hybrid approach can generate a more accurate and stable volatility surface. Our code is uploaded at \href{https://github.com/zhanghq-chn/VAE-VolSurface.git}{\textcolor{blue}{https://github.com/zhanghq-chn/VAE-VolSurface.git}}
+Our project seeks to evaluate how VAEs can enhance volatility modeling by capturing latent structures and improving both interpolation and extrapolation capabilities. Additionally, we aim to analyze how these latent structures reflect underlying market conditions, providing deeper insights into volatility dynamics. Furthermore, we will explore the integration of VAEs with diffusion models, specifically Latent Diffusion Models (LDMs), to assess whether this hybrid approach can generate a more accurate and stable volatility surface. Code for this project is uploaded to our \href{https://github.com/zhanghq-chn/VAE-VolSurface.git}{Github repository}.
 
 \section{Methodologies}
 \paragraph{Variational Autoencoder (VAE)}
-Our project will employ a VAE framework(see fig.\ref{fig:a}) to model the SPX implied volatility surface. The VAE will be trained with an encoder-decoder structure, where the encoder maps the volatility surface into a latent space distribution, and the decoder reconstructs the surface from sampled latent variables. The training objective will balance reconstruction loss and Kullback-Leibler (KL) divergence to enforce meaningful latent representations. We follow the structure in \cite{vaeorigin} to construct the VAEs in two ways: the \textbf{grid-based} approach and the \textbf{pointwise} approach(see fig.\ref{fig:b}).
+Our project will employ a VAE framework(see \figref{fig:a}) to model the SPX implied volatility surface. The VAE will be trained with an encoder-decoder structure, where the encoder maps the volatility surface into a latent space distribution, and the decoder reconstructs the surface from sampled latent variables. The training objective will balance reconstruction loss and Kullback-Leibler (KL) divergence to enforce meaningful latent representations. We follow the structure in \cite{vaeorigin} to construct the VAEs in two ways: the \textbf{grid-based} approach and the \textbf{pointwise} approach(see \figref{fig:b}).
 
-\paragraph{Latent Diffusion Models(LDMs)}
+\paragraph{Latent Diffusion Models (LDMs)}
 To further enhance the performance, we will adopt a hybrid approach. LDMs in \cite{rombach2022highresolutionimagesynthesislatent} apply diffusion-based denoising techniques in the latent space rather than directly on high-dimensional volatility data, so we expect LDMs can  improve the quality of generated surfaces(i.e., robust extrapolation, reduced) while maintaining computational efficiency. Performance comparisons will be conducted to assess whether LDM-enhanced VAEs provide a superior alternative to standalone VAE and traditional parametric methods.
 
 
@@ -72,7 +75,7 @@ To further enhance the performance, we will adopt a hybrid approach. LDMs in \ci
 
 \section{Data}
 \paragraph{Source} We initially focus on SPX option price data from 20220831 to 20230831 (We plan to include more data if it's required by the model training process). The data is available from  Wharton Research Data Services (WRDS). Key features include implied volatility, strike price, expiration date, best bid and best offer, etc.
-\paragraph{Statistics} Since the original dataset consists of some extremely low liquidity options and some missing values, we conduct a cleaning process by keeping data with positive bid price, spread, open interest, and volume. We also filtered out extremely deep ITM and OTM options (whose absolute value of delta is not within 1\% and 99\% quantile). The summary statistics are exhibited in Table \ref{tab:sm_stats}. One thing to note is that we have more put data than call, and the put data is more OTM. Additionally, we pick up 4 options with the highest trading volume and plot their volatility surface in Figure \ref{fig:vol_surface}.
+\paragraph{Statistics} Since the original dataset consists of some extremely low liquidity options and some missing values, we conduct a cleaning process by keeping data with positive bid price, spread, open interest, and volume. We also filtered out extremely deep ITM and OTM options (whose absolute value of delta is not within 1\% and 99\% quantile). The summary statistics are exhibited in \tabref{tab:sm_stats}. One thing to note is that we have more put data than call, and the put data is more OTM. Additionally, we pick up 4 options with the highest trading volume and plot their volatility surface in \figref{fig:vol_surface}.
 
 
 \begin{table}[h]
@@ -107,8 +110,8 @@ Understanding how each latent dimension corresponds to market phenomena is nontr
 
 
 \newpage
-\bibliographystyle{plain}  % Choose citation style: plainnat, abbrvnat, etc.
-\bibliography{ref}
+\printbibliography
+
 \begin{figure}[htp]
     \centering
     \begin{subfigure}{0.45\textwidth}
