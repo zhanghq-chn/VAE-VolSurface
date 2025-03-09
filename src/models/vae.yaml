@@ -1,0 +1,16 @@
+model: 
+    name: vae
+    
+train:
+    batch_size: 128
+    epochs: 10
+    learning_rate: 0.001
+
+network:
+    latent_dim: 20
+    input_dim: 784 # to be set
+    hidden_dim: 100
+
+
+
+    
