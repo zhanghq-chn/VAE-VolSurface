@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 # Encoder
 class Encoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):
@@ -15,7 +16,8 @@ class Encoder(nn.Module):
         mean = self.fc2_mean(h)
         logvar = self.fc2_logvar(h)
         return mean, logvar
-    
+
+
 # Decoder
 class Decoder(nn.Module):
     def __init__(self, latent_dim, hidden_dim, output_dim):
@@ -29,7 +31,8 @@ class Decoder(nn.Module):
         h = self.relu(self.fc1(z))
         x_recon = self.sigmoid(self.fc2(h))
         return x_recon
-    
+
+
 # VAE
 class VAE(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):
@@ -47,9 +50,10 @@ class VAE(nn.Module):
         z = self.reparameterize(mean, logvar)
         x_recon = self.decoder(z)
         return x_recon, mean, logvar
-    
-# Loss function 
+
+
+# Loss function
 def loss_function(x_recon, x, mean, logvar):
-    BCE = nn.functional.binary_cross_entropy(x_recon, x, reduction='sum')
+    BCE = nn.functional.binary_cross_entropy(x_recon, x, reduction="sum")
     KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
     return BCE + KLD

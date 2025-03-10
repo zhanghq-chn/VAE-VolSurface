@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
@@ -23,7 +22,7 @@ batch_size = train_param["batch_size"]
 epochs = train_param["epochs"]
 learning_rate = train_param["learning_rate"]
 latent_dim = network_param["latent_dim"]
-input_dim = network_param["input_dim"]  
+input_dim = network_param["input_dim"]
 hidden_dim = network_param["hidden_dim"]
 
 # create model
@@ -32,7 +31,9 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # test dataset -> to our data
 transform = transforms.Compose([transforms.ToTensor()])
-train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
+train_dataset = datasets.MNIST(
+    root="./data", train=True, transform=transform, download=True
+)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 
 # Training loop
@@ -48,10 +49,10 @@ for epoch in range(epochs):
         train_loss += loss.item()
         optimizer.step()
 
-    print(f'Epoch {epoch+1}, Loss: {train_loss / len(train_loader.dataset):.4f}')
-    
+    print(f"Epoch {epoch+1}, Loss: {train_loss / len(train_loader.dataset):.4f}")
+
 model.eval()
-with torch.no_grad(): # --> sample result
+with torch.no_grad():  # --> sample result
     sample = torch.randn(64, latent_dim).to(device)
     sample = model.decoder(sample).cpu()
-    save_image(sample.view(64, 1, 28, 28), 'output/sample.png')
+    save_image(sample.view(64, 1, 28, 28), "output/sample.png")

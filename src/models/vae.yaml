@@ -1,6 +1,6 @@
-model: 
+model:
     name: vae
-    
+
 train:
     batch_size: 128
     epochs: 10
@@ -13,4 +13,4 @@ network:
 
 
 
-    
+

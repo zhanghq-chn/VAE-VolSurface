@@ -5,6 +5,7 @@ import re
 from itertools import product
 from collections.abc import Iterable
 
+
 class YamlParser:
     """
     A utility class for parsing and manipulating YAML files.
