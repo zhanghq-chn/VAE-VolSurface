@@ -25,6 +25,15 @@ deactivate # to leave the virtual environment
 
 Run `nox` before commiting.
 
+### Train
+
+Sample train and output
+```shell
+python -m src.train --model vae_v1 --save True
+```
+
+
+
 ## Reference
 
 - Variational Autoencoders: A Hands-Off Approach to Volatility

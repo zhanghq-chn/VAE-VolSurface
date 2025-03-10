@@ -1,5 +1,5 @@
 model:
-    name: vae
+    type: vae
 
 train:
     batch_size: 128
