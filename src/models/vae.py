@@ -40,6 +40,7 @@ class VAE(nn.Module):
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, input_dim)
 
+    # Key part: Reparameterization trick
     def reparameterize(self, mean, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
