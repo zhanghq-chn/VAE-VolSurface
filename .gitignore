@@ -205,5 +205,5 @@ cython_debug/
 *.db
 *.pdf
 
-# Test Dataset
+# Test dataset
 data/
