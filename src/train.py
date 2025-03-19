@@ -13,6 +13,7 @@ import argparse
 
 # inner imports
 from src.models.vae import VAE
+from src.models.ldm import LDM, NoisePredictor
 from src.utils.yaml_helper import YamlParser
 
 
@@ -63,6 +64,40 @@ class Trainer(object):
                 self.model.parameters(), lr=train_param["learning_rate"]
             )
 
+        elif self.model_type == "ldm":
+            for key in ["base", "latent_dim", "hidden_dim", "timesteps"]:
+                assert (
+                    key in network_param
+                ), f"Key '{key}' is missing in the network params."
+
+            self.betas = LDM.linear_beta_schedule(network_param["timesteps"]).to(
+                self.device
+            )
+            base_dict = YamlParser(
+                f"src/models/{network_param["base"]}.yaml"
+            ).load_yaml()["network"]
+            self.base_dict = base_dict
+            assert (
+                base_dict["latent_dim"] == network_param["latent_dim"]
+            ), "Latent dim mismatch"
+
+            self.base_encoder = VAE(
+                base_dict["input_dim"],
+                base_dict["hidden_dim"],
+                base_dict["latent_dim"],
+            )
+            self.base_encoder.load_state_dict(
+                torch.load(f"params/{network_param["base"]}.pth")
+            )
+            self.noise_predictor = NoisePredictor(
+                network_param["latent_dim"], network_param["hidden_dim"]
+            )
+            self.model = LDM(self.base_encoder, self.noise_predictor).to(self.device)
+
+            #### FIX: optimizer change
+            self.optimizer = optim.Adam(
+                self.model.parameters(), lr=train_param["learning_rate"]
+            )
         # add other model types here
         else:
             print("Model not found")
@@ -77,12 +112,26 @@ class Trainer(object):
         self.model.train()
         train_loss = 0
         for batch_idx, (data, _) in enumerate(train_loader):
-            data = data.view(-1, self.network_param["input_dim"]).to(self.device)
             self.optimizer.zero_grad()
 
             if self.model_type == "vae":
+                data = data.view(-1, self.network_param["input_dim"]).to(self.device)
                 x_recon, mean, logvar = self.model(data)
                 loss = VAE.loss_function(x_recon, data, mean, logvar)
+
+            elif self.model_type == "ldm":
+                data = data.view(-1, self.base_dict["input_dim"]).to(self.device)
+                # sample a random timestep
+                t = torch.randint(
+                    0, self.network_param["timesteps"], (data.size(0),)
+                ).to(self.device)
+                t_norm = t / self.network_param["timesteps"]
+                # Get latent space representation
+                z = self.model.autoencoder.encoder(data)
+                z_t, noise = LDM.forward_diffusion(z, t, self.betas)
+                noise_pred = self.model.noise_predictor(z_t, t_norm)
+
+                loss = LDM.loss_function(noise_pred, noise)
 
             # Add other model types here
             else:
