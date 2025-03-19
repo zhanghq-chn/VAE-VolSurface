@@ -22,7 +22,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, latent_dim, hidden_dim, output_dim):
         super(Decoder, self).__init__()
-        self.fc1 = nn.Linear(latent_dim+2, hidden_dim) # add K and T
+        self.fc1 = nn.Linear(latent_dim + 2, hidden_dim)  # add K and T
         self.fc2 = nn.Linear(hidden_dim, output_dim)
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
@@ -56,7 +56,9 @@ class VAE_PW(nn.Module):
 # Loss function
 def loss_function(x_recon, x, mean, logvar):
     #### FIX
-    BCE = nn.functional.binary_cross_entropy(x_recon, x, reduction="sum") # NEW LOSS FUNCTION NEEDED --> TO DISCUSS
+    BCE = nn.functional.binary_cross_entropy(
+        x_recon, x, reduction="sum"
+    )  # NEW LOSS FUNCTION NEEDED --> TO DISCUSS
     #### FIX
     KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
     return BCE + KLD

@@ -52,7 +52,6 @@ class VAE(nn.Module):
         x_recon = self.decoder(z)
         return x_recon, mean, logvar
 
-    
     # Loss function
     def loss_function(x_recon, x, mean, logvar):
         BCE = nn.functional.binary_cross_entropy(x_recon, x, reduction="sum")
