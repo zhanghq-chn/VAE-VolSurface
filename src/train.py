@@ -12,7 +12,7 @@ import argparse
 
 
 # inner imports
-from src.models import vae
+from src.models.vae import VAE
 from src.utils.yaml_helper import YamlParser
 
 
@@ -54,7 +54,7 @@ class Trainer(object):
                     key in network_param
                 ), f"Key '{key}' is missing in the network params."
 
-            self.model = vae.VAE(
+            self.model = VAE(
                 network_param["input_dim"],
                 network_param["hidden_dim"],
                 network_param["latent_dim"],
@@ -82,7 +82,7 @@ class Trainer(object):
 
             if self.model_type == "vae":
                 x_recon, mean, logvar = self.model(data)
-                loss = vae.loss_function(x_recon, data, mean, logvar)
+                loss = VAE.loss_function(x_recon, data, mean, logvar)
 
             # Add other model types here
             else:
@@ -116,7 +116,7 @@ class Trainer(object):
         assert hyper_config, "Hyperparameter config is not set."
         self.create_model(hyper_config)
         for epoch in range(self.epochs):
-            ###### here logic change for different dataset (eg:batchsize should be included) ######
+            ###### FIX: logic change for different dataset (eg:batchsize should be included) ######
             loss = self.train(train_loader)
             tune.report(loss=loss)
 
@@ -130,7 +130,7 @@ class Trainer(object):
             config=self.make_hypertune_config(self.hypertune_param),
             resources_per_trial={
                 "cpu": 2
-            },  # Allocate resources ---> shoule be available in yaml
+            },  # FIX: Allocate resources ---> shoule be available in yaml
             num_samples=1,  # Number of samples per configuration
             scheduler=scheduler,
             progress_reporter=reporter,
