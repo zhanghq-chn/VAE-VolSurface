@@ -61,11 +61,7 @@ class Trainer(object):
         if self.model_type == "vae":
             # check params
             for key in ["input_dim", "hidden_dim", "latent_dim"]:
-                try:
-                    assert (
-                        key in network_param
-                    )
-                except:
+                if key not in network_param:
                     logger.error(f"Key '{key}' is missing in the network params.")
                     raise AssertionError(
                         f"Key '{key}' is missing in the network params."
@@ -82,11 +78,7 @@ class Trainer(object):
 
         elif self.model_type == "ldm":
             for key in ["base", "latent_dim", "hidden_dim", "timesteps"]:
-                try:
-                    assert (
-                        key in network_param
-                    ), f"Key '{key}' is missing in the network params."
-                except:
+                if key not in network_param:
                     logger.error(f"Key '{key}' is missing in the network params.")
                     raise AssertionError(
                         f"Key '{key}' is missing in the network params."
