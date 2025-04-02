@@ -53,7 +53,8 @@ class VAE(nn.Module):
         return x_recon, mean, logvar
 
     # Loss function
+    # TODO: penalty coefficient for KL divergence
     def loss_function(x_recon, x, mean, logvar):
-        BCE = nn.functional.binary_cross_entropy(x_recon, x, reduction="sum")
-        KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        return BCE + KLD
+        MSE = nn.functional.mse_loss(x_recon, x, reduction="sum")
+        KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp()) # 0.5
+        return MSE + KLD
