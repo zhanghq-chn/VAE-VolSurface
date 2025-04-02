@@ -17,6 +17,7 @@ dependencies:
   - scikit-learn
   - statsmodels
   - numba
+  - ray-all
 
   # Visualization
   - matplotlib

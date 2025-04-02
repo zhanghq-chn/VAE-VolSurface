@@ -15,7 +15,10 @@ import argparse
 from src.models.vae import VAE
 from src.models.ldm import LDM, NoisePredictor
 from src.utils.yaml_helper import YamlParser
+from .logger import setup_logger
 
+# Set up logger
+logger = setup_logger(__name__, level="INFO")
 
 class Trainer(object):
     def __init__(self, model_name):
@@ -26,7 +29,7 @@ class Trainer(object):
         try:
             self.config = YamlParser(self.path).load_yaml()
         except FileNotFoundError:
-            print("Model configs not found")
+            logger.error("Model configs not found")
             return
 
         # hyperparameters
@@ -41,7 +44,14 @@ class Trainer(object):
 
         # other
         self.model_type = self.config["model"]["type"]
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        device_name = "cpu"
+        if torch.cuda.is_available():
+            device_name = "cuda"
+        elif torch.mps.is_available():
+            device_name = "mps"
+        self.device = torch.device(device_name)
+        logger.info(f"Using device: {device_name}")
 
     #### MODEL
     # set config here only doing hypertune
@@ -51,9 +61,15 @@ class Trainer(object):
         if self.model_type == "vae":
             # check params
             for key in ["input_dim", "hidden_dim", "latent_dim"]:
-                assert (
-                    key in network_param
-                ), f"Key '{key}' is missing in the network params."
+                try:
+                    assert (
+                        key in network_param
+                    )
+                except:
+                    logger.error(f"Key '{key}' is missing in the network params.")
+                    raise AssertionError(
+                        f"Key '{key}' is missing in the network params."
+                    )
 
             self.model = VAE(
                 network_param["input_dim"],
@@ -66,9 +82,15 @@ class Trainer(object):
 
         elif self.model_type == "ldm":
             for key in ["base", "latent_dim", "hidden_dim", "timesteps"]:
-                assert (
-                    key in network_param
-                ), f"Key '{key}' is missing in the network params."
+                try:
+                    assert (
+                        key in network_param
+                    ), f"Key '{key}' is missing in the network params."
+                except:
+                    logger.error(f"Key '{key}' is missing in the network params.")
+                    raise AssertionError(
+                        f"Key '{key}' is missing in the network params."
+                    )
 
             self.betas = LDM.linear_beta_schedule(network_param["timesteps"]).to(
                 self.device
@@ -100,13 +122,13 @@ class Trainer(object):
             )
         # add other model types here
         else:
-            print("Model not found")
+            logger.error("Model not found")
             return
 
     #### MODEL TRAIN
     def load_model(self, path):
         self.model.load_state_dict(torch.load(path))
-        print(f"Model loaded from {path}")
+        logger.info(f"Model loaded from {path}")
 
     def train(self, train_loader: DataLoader, echo=True):
         self.model.train()
@@ -142,7 +164,7 @@ class Trainer(object):
             train_loss += loss.item()
             self.optimizer.step()
         if echo:
-            print(
+            logger.info(
                 f"Epoch {epoch+1}, Loss: {train_loss / len(train_loader.dataset):.4f}"
             )
         return train_loss
@@ -162,7 +184,9 @@ class Trainer(object):
         return hyper_config
 
     def hyper_train(self, train_loader: DataLoader, hyper_config: dict):
-        assert hyper_config, "Hyperparameter config is not set."
+        if not hyper_config:
+            logger.error("Hyperparameter config is not set.")
+            raise AssertionError("Hyperparameter config is not set.")
         self.create_model(hyper_config)
         for epoch in range(self.epochs):
             ###### FIX: logic change for different dataset (eg:batchsize should be included) ######
