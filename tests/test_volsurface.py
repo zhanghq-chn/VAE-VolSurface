@@ -3,12 +3,14 @@ import numpy as np
 import sys
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
-sys.path.insert(0, os.getenv('SRC_PATH'))
-from src.volsurface import GridInterpVolSurface  # replace with your actual import
+sys.path.insert(0, os.getenv("SRC_PATH"))
+
+from src.volsurface import GridInterpVolSurface  # noqa: E402
+
 
 def test_grid_interpolated_vol_surface():
-
     # interpolate a simple linear function
     rng = np.random.default_rng(42)
     delta = rng.uniform(0, 1, 10000)
