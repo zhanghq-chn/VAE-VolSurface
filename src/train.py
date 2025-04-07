@@ -20,6 +20,7 @@ from .logger import setup_logger
 # Set up logger
 logger = setup_logger(__name__, level="INFO")
 
+
 class Trainer(object):
     def __init__(self, model_name):
         self.model_name = model_name
@@ -88,7 +89,7 @@ class Trainer(object):
                 self.device
             )
             base_dict = YamlParser(
-                f"src/models/{network_param["base"]}.yaml"
+                f"src/models/{network_param['base']}.yaml"
             ).load_yaml()["network"]
             self.base_dict = base_dict
             assert (
@@ -101,7 +102,7 @@ class Trainer(object):
                 base_dict["latent_dim"],
             )
             self.base_encoder.load_state_dict(
-                torch.load(f"params/{network_param["base"]}.pth")
+                torch.load(f"params/{network_param['base']}.pth")
             )
             self.noise_predictor = NoisePredictor(
                 network_param["latent_dim"], network_param["hidden_dim"]
