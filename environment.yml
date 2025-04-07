@@ -35,3 +35,4 @@ dependencies:
   - nox
   - pre_commit
   - python-dotenv
+  - pytest

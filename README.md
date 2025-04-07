@@ -16,6 +16,11 @@ pip install -r requirements.txt
 deactivate # to leave the virtual environment
 ```
 
+To update your environment, 
+```shell
+conda env update --file environment.yml
+```
+
 
 ### Setup data folder
 1. Copy `.env_sample` as `.env`

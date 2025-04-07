@@ -30,4 +30,5 @@ jupyterlab
 poetry
 nox
 pre-commit
+pytest
 
