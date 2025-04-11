@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from sklearn.base import BaseEstimator
 import matplotlib.pyplot as plt
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline, griddata
 from statsmodels.nonparametric.kernel_regression import KernelReg
 
 
@@ -108,32 +108,46 @@ class GridInterpVolSurface(VolSurface):
         grid_vol = np.zeros((len(self.delta_grid), len(self.maturity_grid)))
         counts = np.zeros_like(grid_vol, dtype=int)
 
-        delta_idx = np.digitize(delta, self.delta_grid) - 1
-        maturity_idx = np.digitize(maturity, self.maturity_grid) - 1
+        delta_idx = np.digitize(delta, (self.delta_grid[:-1] + self.delta_grid[1:]) / 2)
+        maturity_idx = np.digitize(
+            maturity, (self.maturity_grid[:-1] + self.maturity_grid[1:]) / 2
+        )
 
         # aggregate vols into grid
         # TODO optimize the for loop
         for i in range(len(vol)):
             d_idx, m_idx = delta_idx[i], maturity_idx[i]
-            if 0 <= d_idx < len(self.delta_grid) and 0 <= m_idx < len(
-                self.maturity_grid
-            ):
-                grid_vol[d_idx, m_idx] += vol[i]
-                counts[d_idx, m_idx] += 1
+            grid_vol[d_idx, m_idx] += vol[i]
+            counts[d_idx, m_idx] += 1
 
         # take average
         with np.errstate(invalid="ignore"):
             grid_vol = grid_vol / counts
             grid_vol[counts == 0] = np.nan  # leave empty where no data
 
-        # Optionally: fill missing with nearest, interpolate, etc.
-        # For simplicity, fill with nearest non-nan value
-        from scipy.ndimage import generic_filter
+        # Fill missing values using griddata for interpolation
+        x, y = np.indices(grid_vol.shape)
+        x = x.flatten()
+        y = y.flatten()
+        v = grid_vol.flatten()
+        grid_vol[np.isnan(grid_vol)] = griddata(
+            (x[~np.isnan(v)], y[~np.isnan(v)]),
+            v[~np.isnan(v)],
+            (x[np.isnan(v)], y[np.isnan(v)]),
+            method="linear",
+        )
 
-        mask = np.isnan(grid_vol)
-        with np.errstate(invalid="ignore"):
-            grid_vol = generic_filter(grid_vol, np.nanmean, size=3, mode="nearest")
-        grid_vol = np.where(mask, grid_vol, grid_vol)
+        # fill boundary NaNs with nearest neighbor interpolation
+        x, y = np.indices(grid_vol.shape)
+        v = grid_vol.flatten()
+        x = x.flatten()
+        y = y.flatten()
+        grid_vol[np.isnan(grid_vol)] = griddata(
+            (x[~np.isnan(v)], y[~np.isnan(v)]),
+            v[~np.isnan(v)],
+            (x[np.isnan(v)], y[np.isnan(v)]),
+            method="nearest",
+        )
 
         self.grid_vol = grid_vol
 
