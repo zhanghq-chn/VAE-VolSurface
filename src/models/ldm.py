@@ -22,7 +22,7 @@ class NoisePredictor(nn.Module):
         return self.model(z_t)
 
 
-class LDM(nn.module):
+class LDM(nn.Module):
     def __init__(self, autoencoder, noise_predictor):
         super(LDM, self).__init__()
         # default vae model
