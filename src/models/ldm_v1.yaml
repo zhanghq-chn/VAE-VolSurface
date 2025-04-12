@@ -11,6 +11,7 @@ network:
     base: vae_v1
     latent_dim: 20 # same with base.latent_dim
     hidden_dim: 50
+    timesteps: 100
 
 
 hypertune:

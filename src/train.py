@@ -8,14 +8,18 @@ from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune import CLIReporter
 
+# system
 import argparse
-
+from dotenv import load_dotenv
+load_dotenv()
+import sys, os
+sys.path.insert(0, os.getenv('SRC_PATH'))
 
 # inner imports
 from src.models.vae import VAE
 from src.models.ldm import LDM, NoisePredictor
 from src.utils.yaml_helper import YamlParser
-from .logger import setup_logger
+from src.utils.logger import setup_logger
 
 # Set up logger
 logger = setup_logger(__name__, level="INFO")
@@ -85,9 +89,7 @@ class Trainer(object):
                         f"Key '{key}' is missing in the network params."
                     )
 
-            self.betas = LDM.linear_beta_schedule(network_param["timesteps"]).to(
-                self.device
-            )
+            # Load base model (VAE here)
             base_dict = YamlParser(
                 f"src/models/{network_param['base']}.yaml"
             ).load_yaml()["network"]
@@ -104,11 +106,9 @@ class Trainer(object):
             self.base_encoder.load_state_dict(
                 torch.load(f"params/{network_param['base']}.pth")
             )
-            self.noise_predictor = NoisePredictor(
-                network_param["latent_dim"], network_param["hidden_dim"]
-            )
-            self.model = LDM(self.base_encoder, self.noise_predictor).to(self.device)
-
+            
+            self.model = LDM(autoencoder=self.base_encoder, config=network_param).to(self.device)
+            self.model.set_beta(network_param["timesteps"], self.device)
             #### FIX: optimizer change
             self.optimizer = optim.Adam(
                 self.model.parameters(), lr=train_param["learning_rate"]
@@ -140,13 +140,9 @@ class Trainer(object):
                 t = torch.randint(
                     0, self.network_param["timesteps"], (data.size(0),)
                 ).to(self.device)
-                t_norm = t / self.network_param["timesteps"]
-                # Get latent space representation
-                z = self.model.autoencoder.encoder(data)
-                z_t, noise = LDM.forward_diffusion(z, t, self.betas)
-                noise_pred = self.model.noise_predictor(z_t, t_norm)
-
-                loss = LDM.loss_function(noise_pred, noise)
+                
+                # Get loss from LDM
+                loss = self.model.get_loss(data, t)
 
             # Add other model types here
             else:

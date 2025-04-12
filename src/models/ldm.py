@@ -23,11 +23,15 @@ class NoisePredictor(nn.Module):
 
 
 class LDM(nn.Module):
-    def __init__(self, autoencoder, noise_predictor):
+    def __init__(self, autoencoder, config):
         super(LDM, self).__init__()
         # default vae model
+        # FIXED PARAMS
         self.autoencoder = autoencoder
-        self.noise_predictor = noise_predictor
+        self.autoencoder.requires_grad_(False)
+        self.betas = None
+        # TO TRAIN
+        self.noise_predictor = NoisePredictor(config["latent_dim"], config["hidden_dim"])
 
     def forward(self, x, t):
         # encode input into latent space
@@ -35,6 +39,15 @@ class LDM(nn.Module):
         noise_pred = self.noise_predictor(mean, t)
         return noise_pred
 
+    def set_beta(self, timesteps, device):
+        self.betas = nn.Parameter(self.linear_beta_schedule(timesteps).to(device), requires_grad=False)
+
+    def get_loss(self, data, t_rand):
+        z, _ = self.autoencoder.encoder(data)
+        z_t, noise = self.forward_diffusion(z, t_rand, self.betas)
+        noise_pred = self.noise_predictor(z_t, t_rand/len(self.betas))
+        return self.loss_function(noise_pred, noise)
+    
     # Diffusion Process Utilities
     @staticmethod
     def linear_beta_schedule(timesteps):
@@ -44,8 +57,8 @@ class LDM(nn.Module):
 
     @staticmethod
     def forward_diffusion(z, t, betas):
-        sqrt_alphas = torch.sqrt(1 - betas[t])
-        sqrt_one_minus_alphas = torch.sqrt(betas[t])
+        sqrt_alphas = torch.sqrt(1 - betas[t]).view(-1, 1)
+        sqrt_one_minus_alphas = torch.sqrt(betas[t]).view(-1, 1)
         noise = torch.randn_like(z)
         z_t = sqrt_alphas * z + sqrt_one_minus_alphas * noise
         return z_t, noise
