@@ -36,3 +36,6 @@ dependencies:
   - pre_commit
   - python-dotenv
   - pytest
+
+  # Other Libraries
+  - dotenv
