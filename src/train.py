@@ -238,6 +238,7 @@ if __name__ == "__main__":
 
             # train
             for epoch in range(trainer.epochs):
+                logger.info(f"Epoch {epoch + 1}/{trainer.epochs}, ",end='')
                 trainer.train(train_loader)
 
             if args.save:
