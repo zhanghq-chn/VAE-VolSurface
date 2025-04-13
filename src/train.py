@@ -154,16 +154,16 @@ class Trainer(object):
             self.optimizer.step()
         if echo:
             logger.info(
-                f"Epoch {epoch+1}, Loss: {train_loss / len(train_loader.dataset):.4f}"
+                f"Loss: {train_loss / len(train_loader.dataset):.4f}"
             )
         return train_loss
 
-    def evaluate(self, output_path):
+    def evaluate(self, output_path=None):
         self.model.eval()
         with torch.no_grad():
             sample = torch.randn(64, self.network_param["latent_dim"]).to(self.device)
             sample = self.model.decoder(sample).cpu()
-            save_image(sample.view(64, 1, 28, 28), f"{output_path}/sample.png")
+            # save_image(sample.view(64, 1, 28, 28), f"{output_path}/sample.png")
 
     #### HYPERTUNE
     # create hypertune config from yaml
