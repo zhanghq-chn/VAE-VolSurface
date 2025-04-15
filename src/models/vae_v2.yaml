@@ -3,7 +3,7 @@ model:
     data: volsurfaces
 
 train:
-    batch_size: 24
+    batch_size: 128
     epochs: 10
     learning_rate: 0.001
 
