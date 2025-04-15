@@ -64,7 +64,7 @@ class LDM(nn.Module):
         self.autoencoder.requires_grad_(False)
         self.betas = None
         # TO TRAIN
-        self.noise_predictor = NoisePredictor(config["latent_dim"], config["hidden_dim"])
+        self.noise_predictor = NoisePredictor(config["latent_dim"], config["hidden_dim"], config["embedding_dim"])
 
     def forward(self, x, t):
         # encode input into latent space
