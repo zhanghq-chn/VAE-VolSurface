@@ -45,20 +45,19 @@ class VAE_PW(nn.Module):
         eps = torch.randn_like(std)
         return mean + eps * std
 
-    def forward(self, x, k, t):
-        mean, logvar = self.encoder(x)
+    def forward(self, x):
+        volsuf, k, t = x[:,:-2], x[:,-2], x[:,-1]
+        mean, logvar = self.encoder(volsuf)
         z = self.reparameterize(mean, logvar)
-        z_combined = torch.cat([z, k, t], dim=1)
+        z_combined = torch.cat([z, k.view(-1,1), t.view(-1,1)], dim=1)
         x_recon = self.decoder(z_combined)
         return x_recon, mean, logvar
 
 
 # Loss function
 def loss_function(x_recon, x, mean, logvar):
-    #### FIX
-    BCE = nn.functional.binary_cross_entropy(
+    MSE = nn.functional.mse_loss(
         x_recon, x, reduction="sum"
-    )  # NEW LOSS FUNCTION NEEDED --> TO DISCUSS
-    #### FIX
+    )  
     KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-    return BCE + KLD
+    return MSE + KLD
