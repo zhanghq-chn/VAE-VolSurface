@@ -18,6 +18,7 @@ sys.path.insert(0, os.getenv('SRC_PATH'))
 # inner imports
 from src.models.vae import VAE
 from src.models.ldm import LDM, NoisePredictor
+from src.models.vae_pw import VAE_PW
 from src.utils.yaml_helper import YamlParser
 from src.utils.logger import setup_logger
 
@@ -63,7 +64,8 @@ class Trainer(object):
     def create_model(self, hyper_config=None):
         network_param = hyper_config if hyper_config else self.network_param
         train_param = hyper_config if hyper_config else self.train_param
-        if self.model_type == "vae":
+        if self.model_type.startswith("vae"):
+            mdl = VAE if self.model == "vae" else VAE_PW
             # check params
             for key in ["input_dim", "hidden_dim", "latent_dim"]:
                 if key not in network_param:
@@ -72,7 +74,7 @@ class Trainer(object):
                         f"Key '{key}' is missing in the network params."
                     )
 
-            self.model = VAE(
+            self.model = mdl(
                 network_param["input_dim"],
                 network_param["hidden_dim"],
                 network_param["latent_dim"],
@@ -82,7 +84,7 @@ class Trainer(object):
             )
 
         elif self.model_type == "ldm":
-            for key in ["base", "latent_dim", "hidden_dim", "timesteps"]:
+            for key in ["base", "latent_dim", "hidden_dim", "embedding_dim", "timesteps"]:
                 if key not in network_param:
                     logger.error(f"Key '{key}' is missing in the network params.")
                     raise AssertionError(
@@ -129,10 +131,11 @@ class Trainer(object):
         for batch_idx, (data, _) in enumerate(train_loader):
             self.optimizer.zero_grad()
 
-            if self.model_type == "vae":
+            if self.model_type.startswith("vae"):
                 data = data.view(-1, self.network_param["input_dim"]).to(self.device)
                 x_recon, mean, logvar = self.model(data)
-                loss = VAE.loss_function(x_recon, data, mean, logvar)
+                mdl = VAE if self.model_type == "vae" else VAE_PW
+                loss = mdl.loss_function(x_recon, data, mean, logvar)
 
             elif self.model_type == "ldm":
                 data = data.view(-1, self.base_dict["input_dim"]).to(self.device)
