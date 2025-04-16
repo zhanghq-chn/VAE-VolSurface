@@ -65,7 +65,7 @@ class Trainer(object):
         network_param = hyper_config if hyper_config else self.network_param
         train_param = hyper_config if hyper_config else self.train_param
         if self.model_type.startswith("vae"):
-            mdl = VAE if self.model == "vae" else VAE_PW
+            mdl = VAE if self.model_type == "vae" else VAE_PW
             # check params
             for key in ["input_dim", "hidden_dim", "latent_dim"]:
                 if key not in network_param:
@@ -164,7 +164,10 @@ class Trainer(object):
     def evaluate(self, output_path=None):
         self.model.eval()
         with torch.no_grad():
-            sample = torch.randn(64, self.network_param["latent_dim"]).to(self.device)
+            if self.model_type == "vae" or self.model_type == "ldm":
+                sample = torch.randn(64, self.network_param["latent_dim"]).to(self.device)
+            else:
+                sample = torch.randn(64, self.network_param["latent_dim"] + 2).to(self.device)
             sample = self.model.decoder(sample).cpu()
             # save_image(sample.view(64, 1, 28, 28), f"{output_path}/sample.png")
 

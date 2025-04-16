@@ -37,7 +37,7 @@ class Decoder(nn.Module):
 class VAE_PW(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):
         super(VAE_PW, self).__init__()
-        self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
+        self.encoder = Encoder(input_dim - 2, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, 1)
 
     def reparameterize(self, mean, logvar):
@@ -46,8 +46,10 @@ class VAE_PW(nn.Module):
         return mean + eps * std
 
     def forward(self, x):
-        volsuf, k, t = x[:,:-2], x[:,-2], x[:,-1]
-        mean, logvar = self.encoder(volsuf)
+        volsurf = x[:, :-2]
+        k = x[:, -2]
+        t = x[:, -1]
+        mean, logvar = self.encoder(volsurf)
         z = self.reparameterize(mean, logvar)
         z_combined = torch.cat([z, k.view(-1,1), t.view(-1,1)], dim=1)
         x_recon = self.decoder(z_combined)
