@@ -23,6 +23,33 @@ class VolSurface(BaseEstimator, ABC):
         Evaluate implied volatility at the given strike and maturity.
         """
         return self._predict(X[:, 0], X[:, 1])
+    
+    def fit_grid(self, delta, maturity, vol):
+        """
+        Fits a grid of implied volatilities based on delta and maturity values.
+        This method takes in arrays of delta, maturity, and corresponding volatility
+        values, constructs a grid using these inputs, and fits the model to the data.
+
+        Parameters:
+        -----------
+        delta : 1D array-like
+            Array of delta values representing the moneyness of options.
+        maturity : 1D array-like
+            Array of maturity values representing the time to expiration of options.
+        vol : 2D array-like
+            Array of implied volatility values corresponding to the delta and maturity grid.
+         
+        Returns:
+        --------
+        self : object
+            Returns the instance of the class after fitting the model.
+        """
+        
+        d, m = np.meshgrid(delta, maturity, indexing="ij")
+        X = np.column_stack([d.ravel(), m.ravel()])
+        y = vol.ravel()
+        self.fit(X, y)
+        return self
 
     def predict_grid(self, delta, maturity):
         """
