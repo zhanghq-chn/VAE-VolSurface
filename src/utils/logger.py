@@ -3,7 +3,7 @@ import logging
 
 def setup_logger(name=None, level=logging.INFO):
     formatter = logging.Formatter(
-        "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
+        "[%(asctime)s] [%(levelname)s] %(name)s (%(lineno)d) : %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
