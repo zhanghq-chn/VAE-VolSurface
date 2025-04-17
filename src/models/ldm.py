@@ -3,35 +3,8 @@ import torch.nn as nn
 import numpy as np
 import math
 
-## Timestep embedding (mentioned by gls)
-class SinusoidalTimestepEmbedding(nn.Module):
-    def __init__(self, embedding_dim):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-
-    def forward(self, timesteps):
-        """
-        timesteps: Tensor of shape [batch_size] or scalar, dtype int or float
-        Returns: Tensor of shape [batch_size, embedding_dim]
-        """
-        half_dim = self.embedding_dim // 2
-        freqs = torch.exp(-math.log(10000) * torch.arange(half_dim, dtype=torch.float32) / half_dim).to(timesteps.device)
-        args = timesteps[:, None].float() * freqs[None]
-        emb = torch.cat([torch.sin(args), torch.cos(args)], dim=-1)
-        return emb  # shape: [batch_size, embedding_dim]
-
-## A separate MLP for timestep embedding
-class TimestepMLP(nn.Module):
-    def __init__(self, embedding_dim, latent_dim):
-        super().__init__()
-        self.embed_net = nn.Sequential(
-            nn.Linear(embedding_dim, latent_dim),
-            nn.SiLU(),
-            nn.Linear(latent_dim, latent_dim),
-        )
-
-    def forward(self, t_emb):
-        return self.net(t_emb)  
+## inner import 
+from src.models.basic_model import EmbeddingMLP, SinusoidalPositionalEmbedding
     
 class NoisePredictor(nn.Module):
     def __init__(self, latent_dim, hidden_dim, embedding_dim):
@@ -43,8 +16,8 @@ class NoisePredictor(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, latent_dim),
         )
-        self.t_embed = SinusoidalTimestepEmbedding(embedding_dim)
-        self.t_net = TimestepMLP(embedding_dim, latent_dim)
+        self.t_embed = SinusoidalPositionalEmbedding(embedding_dim)
+        self.t_net = EmbeddingMLP(embedding_dim, latent_dim)
         
     def forward(self, z, t_norm):
         #### FIX
