@@ -229,7 +229,7 @@ class TrainedDecoderVolSurface(VolSurface):
 
     def refresh(self):
         if self.random_src is None:
-            pass
+            return
         self._latent = next(self.random_src)
 
     def _fit(self, delta, maturity, vol):
