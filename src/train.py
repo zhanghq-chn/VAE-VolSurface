@@ -19,6 +19,7 @@ sys.path.insert(0, os.getenv('SRC_PATH'))
 from src.models.vae import VAE
 from src.models.ldm import LDM, NoisePredictor
 from src.models.vae_pw import VAE_PW
+from src.models.vae_pw_improve import VAE_PW_II
 from src.utils.yaml_helper import YamlParser
 from src.utils.logger import setup_logger
 
@@ -64,8 +65,18 @@ class Trainer(object):
     def create_model(self, hyper_config=None):
         network_param = hyper_config if hyper_config else self.network_param
         train_param = hyper_config if hyper_config else self.train_param
+
         if self.model_type.startswith("vae"):
-            mdl = VAE if self.model_type == "vae" else VAE_PW
+            match self.model_type:
+                case "vae":
+                    mdl = VAE
+                case "vae_pw":
+                    mdl = VAE_PW
+                case "vae_pw_ii":
+                    mdl = VAE_PW_II
+                case _:
+                    logger.error("Model not found")
+                    raise AssertionError("Model not found")
             # check params
             for key in ["input_dim", "hidden_dim", "latent_dim"]:
                 if key not in network_param:
@@ -128,16 +139,26 @@ class Trainer(object):
     def train(self, train_loader: DataLoader, echo=True):
         self.model.train()
         train_loss = 0
-        for batch_idx, (data, _) in enumerate(train_loader):
+        for batch_idx, data in enumerate(train_loader):
             self.optimizer.zero_grad()
 
-            if self.model_type.startswith("vae"):
+            if self.model_type == "vae_pw_ii":
+                pw_grid, pw_vol, surface = data
+                pw_grid = pw_grid.view(-1, 2).to(self.device)
+                surface = surface.view(-1, self.network_param["input_dim"]).to(self.device)
+                pw_vol = pw_vol.view(-1, 1).to(self.device)
+                pred, mean, logvar = self.model(surface, pw_grid)
+                loss = VAE_PW_II.loss_function(pred, pw_vol, mean, logvar)
+
+            elif self.model_type.startswith("vae"):
+                data, _ = data
                 data = data.view(-1, self.network_param["input_dim"]).to(self.device)
                 x_recon, mean, logvar = self.model(data)
                 mdl = VAE if self.model_type == "vae" else VAE_PW
                 loss = mdl.loss_function(x_recon, data, mean, logvar)
 
             elif self.model_type == "ldm":
+                data, _ = data
                 data = data.view(-1, self.base_dict["input_dim"]).to(self.device)
                 # sample a random timestep
                 t = torch.randint(
@@ -166,6 +187,9 @@ class Trainer(object):
         with torch.no_grad():
             if self.model_type == "vae" or self.model_type == "ldm":
                 sample = torch.randn(64, self.network_param["latent_dim"]).to(self.device)
+            elif self.model_type == "vae_pw_ii":
+                # todo sampling
+                pass
             else:
                 sample = torch.randn(64, self.network_param["latent_dim"] + 2).to(self.device)
             sample = self.model.decoder(sample).cpu()
