@@ -4,6 +4,7 @@ from sklearn.base import BaseEstimator
 import matplotlib.pyplot as plt
 from scipy.interpolate import RectBivariateSpline, griddata
 from statsmodels.nonparametric.kernel_regression import KernelReg
+import torch
 
 
 class VolSurface(BaseEstimator, ABC):
@@ -208,3 +209,37 @@ class KernelVolSurface(VolSurface):
     def _predict(self, delta, maturity) -> np.ndarray:
         result, _ = self.model.fit(np.column_stack((delta, maturity)))
         return result
+    
+class TrainedDecoderVolSurface(VolSurface):
+    def __init__(self, decoder, maturity_range, random_src=None, latent=None):
+        self.decoder = decoder
+        self.device = next(self.decoder.parameters()).device
+        self._fitted = True
+        self._maturity_range = maturity_range
+        self.random_src = random_src
+        self.latent = latent
+        if not (random_src or latent):
+            raise ValueError("Either random_src or latent must be provided.")
+        elif random_src and latent:
+            raise ValueError("Only one of random_src or latent can be provided.")
+        if random_src is not None:
+            self._latent = next(self.random_src)
+        elif latent is not None:
+            self._latent = self.latent
+
+    def refresh(self):
+        if self.random_src is None:
+            pass
+        self._latent = next(self.random_src)
+
+    def _fit(self, delta, maturity, vol):
+        # This method is not used in this class
+        pass
+
+    def _predict(self, delta, maturity):
+        rand = torch.tensor(self._latent, dtype=torch.float32)
+        latent = rand.repeat(len(delta), 1)
+        delta = torch.tensor(delta, dtype=torch.float32).reshape(-1, 1)
+        maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1) / 365.0
+        z = torch.cat((latent, delta, maturity), dim=1).to(self.device)
+        return self.decoder(z).detach().cpu().numpy()
