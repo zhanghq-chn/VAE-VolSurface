@@ -21,6 +21,22 @@ class SinusoidalPositionalEmbedding(nn.Module):
         return emb  # shape: [batch_size, embedding_dim]
     
     
+## 2Dpositional embedding
+class PositionalEmbedding2D(nn.Module):
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+    def forward(self, timesteps):
+        """
+        timesteps: Tensor of shape [batch_size] or scalar, dtype int or float
+        Returns: Tensor of shape [batch_size, embedding_dim]
+        """
+        half_dim = self.embedding_dim // 2
+        freqs = torch.exp(-math.log(10000) * torch.arange(half_dim, dtype=torch.float32) / half_dim).to(timesteps.device)
+        args = timesteps[:, None].float() * freqs[None]
+        emb = torch.cat([torch.sin(args), torch.cos(args)], dim=-1)
+        return emb
+    
     
 ## Encoder
 class VaeEncoder(nn.Module):
