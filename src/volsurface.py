@@ -243,3 +243,32 @@ class TrainedDecoderVolSurface(VolSurface):
         maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1) / 365.0
         z = torch.cat((latent, delta, maturity), dim=1).to(self.device)
         return self.decoder(z).detach().cpu().numpy()
+    
+class VAEPWVolSurface(VolSurface):
+    def __init__(self, vae_model, latent=None):
+        self.vae_model = vae_model
+        self.device = next(self.vae_model.parameters()).device
+        self._fitted = True
+        self.generator = self.vae_model.get_latent_generator()
+        self.latent = latent
+        if latent is not None:
+            self._latent = latent
+        else:
+            self._latent = next(self.generator)
+
+    def refresh(self):
+        if self.latent is not None:
+            return
+        self._latent = next(self.generator)
+    
+    def _fit(self, delta, maturity, vol):
+        # This method is not used in this class
+        pass
+
+    def _predict(self, delta, maturity):
+        rand = torch.tensor(self._latent, dtype=torch.float32)
+        latent = rand.repeat(len(delta), 1).to(self.device)
+        delta = torch.tensor(delta, dtype=torch.float32).reshape(-1, 1)
+        maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1)
+        pw_grid = torch.cat((delta, maturity), dim=1).to(self.device)
+        return self.vae_model.generate(latent, pw_grid).detach().cpu().numpy()
