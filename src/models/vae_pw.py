@@ -65,12 +65,14 @@ class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent sp
         mean, logvar = self.encoder(surface)
         z = self.reparameterize(mean, logvar)
         delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
         z_combined = torch.cat([z, delta.view(-1, 1), ttm.view(-1, 1)], dim=1)
         pred = self.decoder(z_combined)
         return pred, mean, logvar
     
     def generate(self, latents, pw_grid):
         delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
         z_combined = torch.cat([latents, delta.view(-1, 1), ttm.view(-1, 1)], dim=1)
         pred = self.decoder(z_combined)
         return pred
@@ -91,6 +93,7 @@ class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
         mean, logvar = self.encoder(surface)
         z = self.reparameterize(mean, logvar)
         delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
         delta_embed, ttm_embed = self.dltembed(delta), self.ttmembed(ttm)
         delta_out, ttm_out = self.dltemb_net(delta_embed), self.ttmemb_net(ttm_embed)
         z_combined = z + delta_out + ttm_out
@@ -100,6 +103,7 @@ class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
 
     def generate(self, latents, pw_grid):
         delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
         delta_embed, ttm_embed = self.dltembed(delta), self.ttmembed(ttm)
         delta_out, ttm_out = self.dltemb_net(delta_embed), self.ttmemb_net(ttm_embed)
         z_combined = latents + delta_out + ttm_out

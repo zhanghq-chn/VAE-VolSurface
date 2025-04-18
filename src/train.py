@@ -66,7 +66,6 @@ class Trainer(object):
         train_param = self.train_param|hyper_config if hyper_config else self.train_param
 
         if self.model_type.startswith("vae"):
-            print(self.model_type, '111111111')
             match self.model_type:
                 case "vae":
                     mdl = VAE
