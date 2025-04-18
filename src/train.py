@@ -18,8 +18,7 @@ sys.path.insert(0, os.getenv('SRC_PATH'))
 # inner imports
 from src.models.vae import VAE
 from src.models.ldm import LDM, NoisePredictor
-from src.models.vae_pw import VAE_PW
-from src.models.vae_pw_improve import VAE_PW_II
+from src.models.vae_pw import VAE_PW_II, VAE_PW_I
 from src.utils.yaml_helper import YamlParser
 from src.utils.logger import setup_logger
 
@@ -71,7 +70,7 @@ class Trainer(object):
                 case "vae":
                     mdl = VAE
                 case "vae_pw":
-                    mdl = VAE_PW
+                    mdl = VAE_PW_I
                 case "vae_pw_ii":
                     mdl = VAE_PW_II
                 case _:
