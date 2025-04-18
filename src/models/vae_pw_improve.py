@@ -58,7 +58,12 @@ class VAE_PW_II(nn.Module): # improved version, add k&t embedding
         super(VAE_PW_II, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, 1)
-        self.embed2d = RotaryEmbedding()
+        
+        self.dltemb_net = EmbeddingMLP(10, hidden_dim, latent_dim)
+        self.ttmemb_net = EmbeddingMLP(10, hidden_dim, latent_dim)
+        self.dltembed = SinusoidalPositionalEmbedding(10)
+        self.ttmembed = SinusoidalPositionalEmbedding(10)
+        
 
     def forward(self, surface, pw_grid):
         mean, logvar = self.encoder(surface)
