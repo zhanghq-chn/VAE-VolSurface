@@ -15,7 +15,7 @@ class VAE_PW(nn.Module, ABC):
         1. Encoder/Decoder
         2. Positional Embedding
         3. Embedding MLP'''
-        super(VAE_PW, self).__init__()
+        super().__init__()
         
     
     @abstractmethod
@@ -40,7 +40,7 @@ class VAE_PW(nn.Module, ABC):
 # VAE_pw
 class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent space
     def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VAE_PW_I, self).__init__( input_dim, hidden_dim, latent_dim)
+        super().__init__(input_dim, hidden_dim, latent_dim)
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim + 2, hidden_dim, 1)
 
@@ -52,10 +52,9 @@ class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent sp
         pred = self.decoder(z_combined)
         return pred, mean, logvar
     
-    
 class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
     def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VAE_PW_II, self).__init__( input_dim, hidden_dim, latent_dim)
+        super().__init__(input_dim, hidden_dim, latent_dim)
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, 1)
         
