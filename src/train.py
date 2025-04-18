@@ -65,9 +65,6 @@ class Trainer(object):
     def create_model(self, hyper_config=None):
         network_param = self.network_param|hyper_config if hyper_config else self.network_param
         train_param = self.train_param|hyper_config if hyper_config else self.train_param
-        print('!!!!!!!!!!network', network_param)
-        print('!!!!!!!!!!train', train_param)
-
 
         if self.model_type.startswith("vae"):
             match self.model_type:
