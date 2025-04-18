@@ -10,13 +10,13 @@ from src.models.basic_model import EmbeddingMLP, SinusoidalPositionalEmbedding, 
 
 
 class VAE_PW(nn.Module, ABC):
-    @abstractmethod
     def __init__(self, input_dim, hidden_dim, latent_dim):
         '''Set up the model:
         1. Encoder/Decoder
         2. Positional Embedding
         3. Embedding MLP'''
-        pass
+        super(VAE_PW, self).__init__()
+        
     
     @abstractmethod
     def forward(self, surface, pw_grid):
@@ -40,7 +40,7 @@ class VAE_PW(nn.Module, ABC):
 # VAE_pw
 class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent space
     def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VAE_PW_I, self).__init__()
+        super(VAE_PW_I, self).__init__( input_dim, hidden_dim, latent_dim)
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim + 2, hidden_dim, 1)
 
@@ -55,7 +55,7 @@ class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent sp
     
 class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
     def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VAE_PW_II, self).__init__()
+        super(VAE_PW_II, self).__init__( input_dim, hidden_dim, latent_dim)
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, 1)
         

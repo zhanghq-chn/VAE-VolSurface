@@ -80,4 +80,4 @@ class EmbeddingMLP(nn.Module):
         )
 
     def forward(self, t_emb):
-        return self.net(t_emb)  
+        return self.embed_net(t_emb)  
