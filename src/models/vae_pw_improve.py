@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from abc import ABC, abstractmethod
-from rotary_embedding_torch import RotaryEmbedding
+# from rotary_embedding_torch import RotaryEmbedding
 
 ## Inner import
 from src.models.basic_model import VaeEncoder as Encoder
@@ -53,14 +53,14 @@ class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent sp
         return pred, mean, logvar
     
     
-class VAE_PW_II(nn.Module): # improved version, add k&t embedding
+class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
     def __init__(self, input_dim, hidden_dim, latent_dim):
         super(VAE_PW_II, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, 1)
         
-        self.dltemb_net = EmbeddingMLP(10, hidden_dim, latent_dim)
-        self.ttmemb_net = EmbeddingMLP(10, hidden_dim, latent_dim)
+        self.dltemb_net = EmbeddingMLP(10, latent_dim)
+        self.ttmemb_net = EmbeddingMLP(10,latent_dim)
         self.dltembed = SinusoidalPositionalEmbedding(10)
         self.ttmembed = SinusoidalPositionalEmbedding(10)
         
