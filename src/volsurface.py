@@ -81,9 +81,48 @@ class VolSurface(BaseEstimator, ABC):
         """
         pass
 
-    def plot(self, ax=None, resolution=10, **kwargs):
+    # def plot(self, ax=None, resolution=10, **kwargs):
+    #     """
+    #     Plot the vol surface.
+    #     """
+    #     if not hasattr(self, "_fitted") or not self._fitted:
+    #         raise RuntimeError("VolSurface must be fitted before calling plot().")
+
+    #     maturity_min, maturity_max = self._maturity_range
+
+    #     delta = np.linspace(0, 1, resolution + 1)[1:-1]
+    #     maturity = np.linspace(maturity_min, maturity_max, resolution + 1)
+
+    #     d, m = np.meshgrid(delta, maturity, indexing="ij")
+    #     v = self.predict_grid(delta, maturity)
+
+    #     if ax is None:
+    #         fig = plt.figure()
+    #         ax = fig.add_subplot(111, projection="3d")
+
+    #     ax.plot_surface(d, m, v, **kwargs)
+    #     ax.set_xlabel("Delta")
+    #     ax.set_ylabel("Maturity")
+    #     ax.set_zlabel("Implied Volatility")
+    #     ax.set_title("Volatility Surface")
+    #     return ax
+
+    def plot(self, ax=None, resolution=10, cmap="viridis", figsize=(10, 8), **kwargs):
         """
-        Plot the vol surface.
+        Plot the vol surface with enhanced visualization.
+        
+        Parameters:
+        -----------
+        ax : matplotlib.axes._subplots.Axes3DSubplot, optional
+            The axes to plot on. If None, a new figure and axes are created.
+        resolution : int, optional
+            The resolution of the grid for plotting. Higher values give finer plots.
+        cmap : str, optional
+            The colormap to use for the surface plot.
+        figsize : tuple, optional
+            The size of the figure (width, height) in inches.
+        **kwargs : dict
+            Additional keyword arguments passed to `plot_surface`.
         """
         if not hasattr(self, "_fitted") or not self._fitted:
             raise RuntimeError("VolSurface must be fitted before calling plot().")
@@ -97,14 +136,27 @@ class VolSurface(BaseEstimator, ABC):
         v = self.predict_grid(delta, maturity)
 
         if ax is None:
-            fig = plt.figure()
+            fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111, projection="3d")
 
-        ax.plot_surface(d, m, v, **kwargs)
-        ax.set_xlabel("Delta")
-        ax.set_ylabel("Maturity")
-        ax.set_zlabel("Implied Volatility")
-        ax.set_title("Volatility Surface")
+        # Create the surface plot with a colormap
+        surf = ax.plot_surface(
+            d, m, v, cmap=cmap, edgecolor="k", linewidth=0.5, **kwargs
+        )
+
+        # Add a color bar for the surface plot
+        cbar = plt.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
+        cbar.set_label("Implied Volatility", fontsize=12)
+
+        # Set axis labels and title with larger font sizes
+        ax.set_xlabel("Delta", fontsize=12)
+        ax.set_ylabel("Maturity", fontsize=12)
+        ax.set_zlabel("Implied Volatility", fontsize=12)
+        ax.set_title("Volatility Surface", fontsize=14)
+
+        # Adjust tick label sizes
+        ax.tick_params(axis="both", which="major", labelsize=10)
+
         return ax
 
 
