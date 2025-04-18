@@ -64,8 +64,8 @@ class Trainer(object):
     #### MODEL
     # set config here only doing hypertune
     def create_model(self, hyper_config=None):
-        network_param = hyper_config if hyper_config else self.network_param
-        train_param = hyper_config if hyper_config else self.train_param
+        network_param = self.network_param|hyper_config if hyper_config else self.network_param
+        train_param = self.train_param|hyper_config if hyper_config else self.train_param
 
         if self.model_type.startswith("vae"):
             match self.model_type:
@@ -211,20 +211,24 @@ class Trainer(object):
         for epoch in range(self.epochs):
             ###### FIX: logic change for different dataset (eg:batchsize should be included) ######
             loss = self.train(train_loader)
-            ray.train.report(dict(loss=loss))
+            try:
+                tune.report({'loss':loss})
+            except AttributeError:
+                ray.train.report(dict(loss=loss))
+            
 
     def hypertune(self, train_loader: DataLoader):
         reporter = CLIReporter(metric_columns=["loss", "training_iteration"])
         scheduler = ASHAScheduler(metric="loss", mode="min")
-
+        print('Hypertune!!',self.make_hypertune_config(self.hypertune_param))
         # Run the grid search
         analysis = tune.run(
             lambda config: self.hyper_train(train_loader, config),
             config=self.make_hypertune_config(self.hypertune_param),
             resources_per_trial={
-                "cpu": 2
+                "cpu": 1
             },  # FIX: Allocate resources ---> shoule be available in yaml
-            num_samples=1,  # Number of samples per configuration
+            num_samples=2,  # Number of samples per configuration
             scheduler=scheduler,
             progress_reporter=reporter,
             verbose=1,
@@ -269,7 +273,7 @@ if __name__ == "__main__":
 
             # train
             for epoch in range(trainer.epochs):
-                logger.info(f"Epoch {epoch + 1}/{trainer.epochs}, ",end='')
+                logger.info(f"Epoch {epoch + 1}/{trainer.epochs}, ")
                 trainer.train(train_loader)
 
             if args.save:
