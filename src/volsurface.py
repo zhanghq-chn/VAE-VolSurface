@@ -81,16 +81,23 @@ class VolSurface(BaseEstimator, ABC):
         """
         pass
 
-    def plot(self, ax=None, resolution=10, **kwargs):
+    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), **kwargs):
         """
         Plot the vol surface.
         """
         if not hasattr(self, "_fitted") or not self._fitted:
             raise RuntimeError("VolSurface must be fitted before calling plot().")
 
-        maturity_min, maturity_max = self._maturity_range
+        delta_min, delta_max = delta_range
+        delta_min = delta_min or 0
+        delta_max = delta_max or 1
 
-        delta = np.linspace(0, 1, resolution + 1)
+        maturity_min, maturity_max = maturity_range
+        maturity_min = maturity_min or self._maturity_range[0]
+        maturity_max = maturity_max or self._maturity_range[1]
+
+        delta = np.linspace(delta_min, delta_max, resolution + 1)
+        delta = delta[(0 < delta) & (delta < 1)]
         maturity = np.linspace(maturity_min, maturity_max, resolution + 1)
 
         d, m = np.meshgrid(delta, maturity, indexing="ij")
@@ -255,6 +262,8 @@ class VAEPWVolSurface(VolSurface):
             self._latent = latent
         else:
             self._latent = next(self.generator)
+
+        self._maturity_range = (None, None)
 
     def refresh(self):
         if self.latent is not None:
