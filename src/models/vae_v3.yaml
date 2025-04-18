@@ -1,5 +1,5 @@
 model:
-    type: vae_pw
+    type: vae_pw_i
     data: volsurfaces
 
 train:
@@ -9,7 +9,7 @@ train:
 
 network:
     latent_dim: 20
-    input_dim: 74
+    input_dim: 72
     hidden_dim: 100
 
 

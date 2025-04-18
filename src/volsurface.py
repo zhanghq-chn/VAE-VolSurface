@@ -90,7 +90,7 @@ class VolSurface(BaseEstimator, ABC):
 
         maturity_min, maturity_max = self._maturity_range
 
-        delta = np.linspace(0, 1, resolution + 1)
+        delta = np.linspace(0, 1, resolution + 1)[1:-1]
         maturity = np.linspace(maturity_min, maturity_max, resolution + 1)
 
         d, m = np.meshgrid(delta, maturity, indexing="ij")
@@ -211,8 +211,11 @@ class KernelVolSurface(VolSurface):
         return result
     
 class TrainedDecoderVolSurface(VolSurface):
-    def __init__(self, decoder, maturity_range, random_src=None, latent=None):
-        self.decoder = decoder
+    def __init__(self, model_type, model, maturity_range, random_src=None, latent=None):
+        self.model_type = model_type
+        self.model = model
+        self.decoder = model.decoder
+        # self.decoder = decoder
         self.device = next(self.decoder.parameters()).device
         self._fitted = True
         self._maturity_range = maturity_range
@@ -237,9 +240,14 @@ class TrainedDecoderVolSurface(VolSurface):
         pass
 
     def _predict(self, delta, maturity):
-        rand = torch.tensor(self._latent, dtype=torch.float32)
+        rand = torch.tensor(self._latent, dtype=torch.float32, device=self.device) 
         latent = rand.repeat(len(delta), 1)
-        delta = torch.tensor(delta, dtype=torch.float32).reshape(-1, 1)
-        maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1) / 365.0
-        z = torch.cat((latent, delta, maturity), dim=1).to(self.device)
+        delta = torch.tensor(delta, dtype=torch.float32, device=self.device).reshape(-1, 1)
+        maturity = torch.tensor(maturity, dtype=torch.float32, device=self.device).reshape(-1, 1) / 365.0
+        if self.model_type == "vae_pw_ii":
+            delta_embed = self.model.dltemb_net(self.model.dltembed(delta)).squeeze(1)  # shape [72, 4]
+            maturity_embed = self.model.ttmemb_net(self.model.ttmembed(maturity)).squeeze(1)  # shape [72, 4]
+            z = latent + delta_embed + maturity_embed
+        else:
+            z = torch.cat((latent, delta, maturity), dim=1).to(self.device)
         return self.decoder(z).detach().cpu().numpy()
