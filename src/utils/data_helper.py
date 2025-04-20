@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-
+import json
+from src.volsurface import KernelVolSurface
 from .logger import setup_logger
 logger = setup_logger(__name__)
 
@@ -90,3 +91,48 @@ def clean_data(df_raw):
     logger.info("Moneyness calculation completed")
 
     return df_active
+
+def generate_predicted_vol_surfaces(df, delta_grid, maturity_grid, output_path):
+    """
+    Generate predicted volatility surfaces and save them as a JSON file.
+
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame containing the cleaned data.
+    delta_grid : np.ndarray
+        Grid of delta values.
+    maturity_grid : np.ndarray
+        Grid of maturity values.
+    output_path : str
+        Path to save the predicted volatility surfaces JSON file.
+    """
+    unique_dates = df["date"].unique()
+    predicted_vol_surfaces = {}
+
+    for date in unique_dates:
+        logger.info(f"Processing date: {date}")
+
+        # Filter data for the current date
+        delta = df.loc[(df["date"] == date), "delta"]
+        maturity = df.loc[(df["date"] == date), "ttm"]
+        vol = df.loc[(df["date"] == date), "impl_volatility"]
+
+        if len(delta) == 0 or len(maturity) == 0 or len(vol) == 0:
+            logger.warning(f"No data for date {date}")
+            continue
+        X = np.column_stack([delta, maturity])
+        y = vol
+
+        # Fit KernelVolSurface model
+        kernel_model = KernelVolSurface()
+        kernel_model.fit(X, y)
+
+        # Predict volatility on the grid
+        grid_vol = kernel_model.predict_grid(delta_grid, maturity_grid)
+        predicted_vol_surfaces[str(date)] = grid_vol.tolist()
+
+    # Save the results to a JSON file
+    with open(output_path, "w") as f:
+        json.dump(predicted_vol_surfaces, f, indent=4)
+    logger.info(f"Predicted volatility surfaces saved to {output_path}")
