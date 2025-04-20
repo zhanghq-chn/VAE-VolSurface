@@ -81,16 +81,23 @@ class VolSurface(BaseEstimator, ABC):
         """
         pass
 
-    def plot(self, ax=None, resolution=10, **kwargs):
+    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), **kwargs):
         """
         Plot the vol surface.
         """
         if not hasattr(self, "_fitted") or not self._fitted:
             raise RuntimeError("VolSurface must be fitted before calling plot().")
 
-        maturity_min, maturity_max = self._maturity_range
+        delta_min, delta_max = delta_range
+        delta_min = delta_min or 0
+        delta_max = delta_max or 1
 
-        delta = np.linspace(0, 1, resolution + 1)
+        maturity_min, maturity_max = maturity_range
+        maturity_min = maturity_min or self._maturity_range[0]
+        maturity_max = maturity_max or self._maturity_range[1]
+
+        delta = np.linspace(delta_min, delta_max, resolution + 1)
+        delta = delta[(0 < delta) & (delta < 1)]
         maturity = np.linspace(maturity_min, maturity_max, resolution + 1)
 
         d, m = np.meshgrid(delta, maturity, indexing="ij")
@@ -243,3 +250,34 @@ class TrainedDecoderVolSurface(VolSurface):
         maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1) / 365.0
         z = torch.cat((latent, delta, maturity), dim=1).to(self.device)
         return self.decoder(z).detach().cpu().numpy()
+    
+class VAEPWVolSurface(VolSurface):
+    def __init__(self, vae_model, latent=None):
+        self.vae_model = vae_model
+        self.device = next(self.vae_model.parameters()).device
+        self._fitted = True
+        self.generator = self.vae_model.get_latent_generator()
+        self.latent = latent
+        if latent is not None:
+            self._latent = latent
+        else:
+            self._latent = next(self.generator)
+
+        self._maturity_range = (None, None)
+
+    def refresh(self):
+        if self.latent is not None:
+            return
+        self._latent = next(self.generator)
+    
+    def _fit(self, delta, maturity, vol):
+        # This method is not used in this class
+        pass
+
+    def _predict(self, delta, maturity):
+        rand = torch.tensor(self._latent, dtype=torch.float32)
+        latent = rand.repeat(len(delta), 1).to(self.device)
+        delta = torch.tensor(delta, dtype=torch.float32).reshape(-1, 1)
+        maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1)
+        pw_grid = torch.cat((delta, maturity), dim=1).to(self.device)
+        return self.vae_model.generate(latent, pw_grid).detach().cpu().numpy()

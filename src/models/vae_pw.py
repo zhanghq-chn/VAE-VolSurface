@@ -1,65 +1,111 @@
 import torch
 import torch.nn as nn
+import numpy as np
+from abc import ABC, abstractmethod
+# from rotary_embedding_torch import RotaryEmbedding
+
+## Inner import
+from src.models.basic_model import VaeEncoder as Encoder
+from src.models.basic_model import VaeDecoder as Decoder
+from src.models.basic_model import EmbeddingMLP, SinusoidalPositionalEmbedding, PositionalEmbedding2D
 
 
-# Encoder
-class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(Encoder, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2_mean = nn.Linear(hidden_dim, latent_dim)
-        self.fc2_logvar = nn.Linear(hidden_dim, latent_dim)
-        self.relu = nn.ReLU()
+class VAE_PW(nn.Module, ABC):
+    def __init__(self, input_dim, hidden_dims, latent_dim):
+        '''Set up the model:
+        1. Encoder/Decoder
+        2. Positional Embedding
+        3. Embedding MLP'''
+        super().__init__()
+        self.input_dim = input_dim
+        self.hidden_dims = hidden_dims
+        self.latent_dim = latent_dim
+        
+    
+    @abstractmethod
+    def forward(self, surface, pw_grid):
+        '''Forward pass of the model'''
+        pass
 
-    def forward(self, x):
-        h = self.relu(self.fc1(x))
-        mean = self.fc2_mean(h)
-        logvar = self.fc2_logvar(h)
-        return mean, logvar
+    @abstractmethod
+    def generate(self, latents, pw_grid):
+        '''Generate the vol surface from the latent space'''
+        pass
 
-
-# Decoder
-class Decoder(nn.Module):
-    def __init__(self, latent_dim, hidden_dim, output_dim):
-        super(Decoder, self).__init__()
-        self.fc1 = nn.Linear(latent_dim + 2, hidden_dim)  # add K and T
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
-        self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU()
-
-    def forward(self, z):
-        h = self.relu(self.fc1(z))
-        x_recon = self.sigmoid(self.fc2(h))
-        return x_recon
-
-
-# VAE_pw
-class VAE_PW(nn.Module):
-    def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VAE_PW, self).__init__()
-        self.encoder = Encoder(input_dim - 2, hidden_dim, latent_dim)
-        self.decoder = Decoder(latent_dim, hidden_dim, 1)
-
-    def reparameterize(self, mean, logvar):
+    def get_latent_generator(self, mean=0.0, std=1.0, seed=42):
+        def generator():
+            rng = np.random.default_rng(seed)
+            while True:
+                yield rng.normal(mean, std, size=self.latent_dim)
+        return generator()
+        
+    @staticmethod
+    def reparameterize(mean, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mean + eps * std
-
-    def forward(self, x):
-        volsurf = x[:, :-2]
-        k = x[:, -2]
-        t = x[:, -1]
-        mean, logvar = self.encoder(volsurf)
-        z = self.reparameterize(mean, logvar)
-        z_combined = torch.cat([z, k.view(-1,1), t.view(-1,1)], dim=1)
-        x_recon = self.decoder(z_combined)
-        return x_recon, mean, logvar
-
+    
     @staticmethod
     # Loss function
-    def loss_function(x_recon, x, mean, logvar):
+    def loss_function(pred, pw_vol, mean, logvar):
         MSE = nn.functional.mse_loss(
-            x_recon, x, reduction="sum"
+            pred, pw_vol, reduction="sum"
         )  
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         return MSE + KLD
+
+# VAE_pw
+class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent space
+    def __init__(self, input_dim, hidden_dim, latent_dim):
+        super().__init__(input_dim, hidden_dim, latent_dim)
+        self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
+        self.decoder = Decoder(latent_dim + 2, hidden_dim, 1)
+
+    def forward(self, surface, pw_grid):
+        mean, logvar = self.encoder(surface)
+        z = self.reparameterize(mean, logvar)
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        z_combined = torch.cat([z, delta.view(-1, 1), ttm.view(-1, 1)], dim=1)
+        pred = self.decoder(z_combined)
+        return pred, mean, logvar
+    
+    def generate(self, latents, pw_grid):
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        z_combined = torch.cat([latents, delta.view(-1, 1), ttm.view(-1, 1)], dim=1)
+        pred = self.decoder(z_combined)
+        return pred
+    
+class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
+    def __init__(self, input_dim, hidden_dim, latent_dim):
+        super().__init__(input_dim, hidden_dim, latent_dim)
+        self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
+        self.decoder = Decoder(latent_dim, hidden_dim, 1)
+        
+        self.dltemb_net = EmbeddingMLP(10, latent_dim)
+        self.ttmemb_net = EmbeddingMLP(10,latent_dim)
+        self.dltembed = SinusoidalPositionalEmbedding(10)
+        self.ttmembed = SinusoidalPositionalEmbedding(10)
+        
+
+    def forward(self, surface, pw_grid):
+        mean, logvar = self.encoder(surface)
+        z = self.reparameterize(mean, logvar)
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        delta_embed, ttm_embed = self.dltembed(delta), self.ttmembed(ttm)
+        delta_out, ttm_out = self.dltemb_net(delta_embed), self.ttmemb_net(ttm_embed)
+        z_combined = z + delta_out + ttm_out
+        # z_combined = torch.cat([z, delta_out, ttm_out], dim=1)
+        pred = self.decoder(z_combined)
+        return pred, mean, logvar
+
+    def generate(self, latents, pw_grid):
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        delta_embed, ttm_embed = self.dltembed(delta), self.ttmembed(ttm)
+        delta_out, ttm_out = self.dltemb_net(delta_embed), self.ttmemb_net(ttm_embed)
+        z_combined = latents + delta_out + ttm_out
+        pred = self.decoder(z_combined)
+        return pred

@@ -19,8 +19,7 @@ sys.path.insert(0, os.getenv('SRC_PATH'))
 # inner imports
 from src.models.vae import VAE
 from src.models.ldm import LDM, NoisePredictor
-from src.models.vae_pw import VAE_PW
-from src.models.vae_pw_improve import VAE_PW_II
+from src.models.vae_pw import VAE_PW_II, VAE_PW_I
 from src.utils.yaml_helper import YamlParser
 from src.utils.logger import setup_logger
 
@@ -71,8 +70,8 @@ class Trainer(object):
             match self.model_type:
                 case "vae":
                     mdl = VAE
-                case "vae_pw":
-                    mdl = VAE_PW
+                case "vae_pw_i":
+                    mdl = VAE_PW_I
                 case "vae_pw_ii":
                     mdl = VAE_PW_II
                 case _:
@@ -143,7 +142,7 @@ class Trainer(object):
         for batch_idx, data in enumerate(train_loader):
             self.optimizer.zero_grad()
 
-            if self.model_type == "vae_pw_ii":
+            if self.model_type.startswith("vae_pw"):
                 pw_grid, pw_vol, surface = data
                 pw_grid = pw_grid.view(-1, 2).to(self.device)
                 surface = surface.view(-1, self.network_param["input_dim"]).to(self.device)
@@ -151,11 +150,11 @@ class Trainer(object):
                 pred, mean, logvar = self.model(surface, pw_grid)
                 loss = VAE_PW_II.loss_function(pred, pw_vol, mean, logvar)
 
-            elif self.model_type.startswith("vae"):
+            elif self.model_type == "vae":
                 data, _ = data
                 data = data.view(-1, self.network_param["input_dim"]).to(self.device)
                 x_recon, mean, logvar = self.model(data)
-                mdl = VAE if self.model_type == "vae" else VAE_PW
+                mdl = VAE 
                 loss = mdl.loss_function(x_recon, data, mean, logvar)
 
             elif self.model_type == "ldm":

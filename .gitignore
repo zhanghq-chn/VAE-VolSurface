@@ -207,3 +207,6 @@ cython_debug/
 
 # Test dataset
 data/
+
+# reference
+!reference/**

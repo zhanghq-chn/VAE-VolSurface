@@ -51,7 +51,7 @@ Princeton University \\
 \begin{document}
 
 \maketitle
-\textbf{}% \begin{abstract}
+% \begin{abstract}
 %     Our project aims to explore the application of Variational Autoencoders (VAEs) in modeling and fitting the implied volatility surface of SPX index options. Traditional parametric models of stochastic volatility such as Heston and SABR impose rigid structural assumptions that may not fully capture market nuances. A VAE-based approach offers a flexible, data-driven alternative that can adapt to diverse market conditions, interpolate missing volatility data, and provide a generative framework for synthetic volatility surfaces. Our project will investigate the accuracy, robustness, and computational efficiency of VAEs compared to traditional models, with the goal of improving volatility estimation in options pricing and risk management.
 % \end{abstract}
 
@@ -67,7 +67,7 @@ Our project seeks to evaluate how VAEs can enhance volatility modeling by captur
 Our project will employ a VAE framework(see \figref{fig:a}) to model the SPX implied volatility surface. The VAE will be trained with an encoder-decoder structure, where the encoder maps the volatility surface into a latent space distribution, and the decoder reconstructs the surface from sampled latent variables. The training objective will balance reconstruction loss and Kullback-Leibler (KL) divergence to enforce meaningful latent representations. We follow the structure in \cite{vaeorigin} to construct the VAEs in two ways: the \textbf{grid-based} approach and the \textbf{pointwise} approach(see \figref{fig:b}).
 
 \paragraph{Latent Diffusion Models (LDMs)}
-To further enhance the performance, we will adopt a hybrid approach. LDMs in \cite{rombach2022highresolutionimagesynthesislatent} apply diffusion-based denoising techniques in the latent space rather than directly on high-dimensional volatility data, so we expect LDMs can  improve the quality of generated surfaces(i.e., robust extrapolation) while maintaining computational efficiency. Performance comparisons will be conducted to assess whether LDM-enhanced VAEs provide a superior alternative to standalone VAE and traditional parametric methods.
+To further enhance the performance, we will adopt a hybrid approach. LDMs in \cite{rombach2022highresolutionimagesynthesislatent} apply diffusion-based denoising techniques in the latent space rather than directly on high-dimensional volatility data, so we expect LDMs can  improve the quality of generated surfaces(i.e., robust extrapolation, reduced) while maintaining computational efficiency. Performance comparisons will be conducted to assess whether LDM-enhanced VAEs provide a superior alternative to standalone VAE and traditional parametric methods.
 
 
 
@@ -98,7 +98,7 @@ To further enhance the performance, we will adopt a hybrid approach. LDMs in \ci
 
 Several challenges are anticipated in our project.
 \paragraph{Ensuring data quality}
-Restricted by data source availability, our data does not contain trade prices, while only providing best bid, best ask, and last trade date, which may bring difficulties in producing accurate estimations.
+Restricted by data source availability, our data does not contain trade prices, while only providing best bid, best ask, and last trade date, which may bring difficulties in the accuracy of estimation.
 
 \paragraph{Hyperparameter tuning} Hyperparameter tuning is another challenge, as optimizing the trade-off between reconstruction loss and KL divergence is critical for meaningful latent space representation. Also, we need to choose the distribution and dimension of the latent space in VAEs carefully to achieve best performance with lower computation costs.
 
