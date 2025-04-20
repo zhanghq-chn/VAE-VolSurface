@@ -81,7 +81,7 @@ class VolSurface(BaseEstimator, ABC):
         """
         pass
 
-    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), cmap="coolwarm", **kwargs):
+    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), **kwargs):
         """
         Plot the vol surface.
         """
@@ -107,11 +107,22 @@ class VolSurface(BaseEstimator, ABC):
             fig = plt.figure()
             ax = fig.add_subplot(111, projection="3d")
 
-        ax.plot_surface(d, m, v, cmap=cmap, **kwargs)
+        # Normalize the volatility values for coloring
+        norm = plt.Normalize(v.min(), v.max())  # or min(v.max(), 0.3) for lighter feel
+        colors = plt.cm.coolwarm(norm(v))
+
+        # Plot with shade off and higher resolution stride
+        surf = ax.plot_surface(d, m, v, facecolors=colors, rstride=1, cstride=1, shade=False, **kwargs)
         ax.set_xlabel("Delta")
-        ax.set_ylabel("Maturity")
+        ax.set_ylabel("Maturity (Days)")
         ax.set_zlabel("Implied Volatility")
-        ax.set_title("Volatility Surface")
+        ax.set_title("Vol Surface")
+
+        # Add a color bar to represent the scale
+        mappable = plt.cm.ScalarMappable(cmap="coolwarm", norm=norm)  # Changed to coolwarm
+        mappable.set_array(v)
+        fig.colorbar(mappable, ax=ax, shrink=0.5, aspect=10)
+
         return ax
 
 
