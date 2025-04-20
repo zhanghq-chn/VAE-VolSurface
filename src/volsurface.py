@@ -81,7 +81,7 @@ class VolSurface(BaseEstimator, ABC):
         """
         pass
 
-    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), **kwargs):
+    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), cmap="coolwarm", **kwargs):
         """
         Plot the vol surface.
         """
@@ -107,7 +107,7 @@ class VolSurface(BaseEstimator, ABC):
             fig = plt.figure()
             ax = fig.add_subplot(111, projection="3d")
 
-        ax.plot_surface(d, m, v, **kwargs)
+        ax.plot_surface(d, m, v, cmap=cmap, **kwargs)
         ax.set_xlabel("Delta")
         ax.set_ylabel("Maturity")
         ax.set_zlabel("Implied Volatility")
