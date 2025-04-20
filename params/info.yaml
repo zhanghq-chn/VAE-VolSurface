@@ -1,0 +1,7 @@
+vae_pw_ii_dumb: 
+  model: "VAE_PW_II"
+  description: "model trained with scaled ttm"
+  problem: "simulated surface exhibits little variation"
+  git:
+    branch: "main"
+    commit: "912589f610a5e99ae4bca07ccea8e5699ba56ab9"
