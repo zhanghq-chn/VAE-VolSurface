@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
+import ray
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune import CLIReporter
@@ -209,7 +210,11 @@ class Trainer(object):
         for epoch in range(self.epochs):
             ###### FIX: logic change for different dataset (eg:batchsize should be included) ######
             loss = self.train(train_loader)
-            tune.report({'loss':loss})
+            try:
+                tune.report({'loss':loss})
+            except AttributeError:
+                ray.train.report(dict(loss=loss))
+            
 
     def hypertune(self, train_loader: DataLoader):
         reporter = CLIReporter(metric_columns=["loss", "training_iteration"])
