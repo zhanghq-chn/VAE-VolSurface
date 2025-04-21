@@ -51,6 +51,7 @@ class Trainer(object):
 
         # other
         self.model_type = self.config["model"]["type"]
+        self.beta = self.config['model'].get("beta", 1.0)
 
         device_name = "cpu"
         if torch.cuda.is_available():
@@ -148,14 +149,14 @@ class Trainer(object):
                 surface = surface.view(-1, self.network_param["input_dim"]).to(self.device)
                 pw_vol = pw_vol.view(-1, 1).to(self.device)
                 pred, mean, logvar = self.model(surface, pw_grid)
-                loss = VAE_PW_II.loss_function(pred, pw_vol, mean, logvar)
+                loss = VAE_PW_II.loss_function(pred, pw_vol, mean, logvar, self.beta)
 
             elif self.model_type == "vae":
                 data, _ = data
                 data = data.view(-1, self.network_param["input_dim"]).to(self.device)
                 x_recon, mean, logvar = self.model(data)
                 mdl = VAE 
-                loss = mdl.loss_function(x_recon, data, mean, logvar)
+                loss = mdl.loss_function(x_recon, data, mean, logvar, self.beta)
 
             elif self.model_type == "ldm":
                 data, _ = data

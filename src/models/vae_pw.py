@@ -45,14 +45,13 @@ class VAE_PW(nn.Module, ABC):
         eps = torch.randn_like(std)
         return mean + eps * std
     
-    @staticmethod
     # Loss function
-    def loss_function(pred, pw_vol, mean, logvar):
+    def loss_function(pred, pw_vol, mean, logvar, beta):
         MSE = nn.functional.mse_loss(
             pred, pw_vol, reduction="sum"
         )  
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        return MSE + KLD
+        return MSE + beta * KLD
 
 # VAE_pw
 class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent space
