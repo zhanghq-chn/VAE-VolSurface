@@ -14,9 +14,10 @@
 \usepackage{natbib}
 \usepackage{pifont}
 % \usepackage[section]{placeins} % to make figures stay at the same section
+\usepackage{soul}
 \usepackage{subcaption}
 \usepackage{tikz}
-\usepackage[margin=1in]{geometry}
+% \usepackage[margin=1in]{geometry}
 
 \usepackage{xcolor}
 
@@ -50,6 +51,7 @@
 \newcommand\loss{\ensuremath{\mathcal{L}}}
 \newcommand\crlb{\ensuremath{\text{CRLB}}}
 \newcommand\todo{\textcolor{red}{\textbf{TODO}}}
+\newcommand{\tick}{\ding{51}}
 \newcommand*\indicator[1]{\ensuremath{\mathds{1}\left\{#1\right\}}}
 \newcommand*\abs[1]{\ensuremath{\left\vert #1 \right\vert}}
 \newcommand*\norm[1]{\ensuremath{\left\Vert #1 \right\Vert}}
@@ -62,6 +64,7 @@
 
 \usetheme{Boadilla}
 \usecolortheme{seahorse}
+\beamertemplatenavigationsymbolsempty
 
 
 
@@ -83,10 +86,10 @@
 \begin{frame}{Overview}
 \todo
 
-1. Introducing vol surface(bs, implied vol + examples) \\
-2. VAE review - theory and image application\\
+\st{1. Introducing vol surface(bs, implied vol + examples)} \\
+\st{2. VAE review - theory and image application}\\
 3. models and usage, VAE, vae pointwise(replicating)\\
-4. dataset introduction - eg:fig\\
+\st{4. dataset introduction - eg:fig}\\
 5. VAE generate result \\
 6. latent space analysis\\
 7. VAE pointwise result\\
@@ -124,6 +127,54 @@
 
 
 % \end{frame}
+
+\begin{frame}{Dataset - \textit{OptionMetrics} from IvyDB}
+    \begin{itemize}
+        \item We pulled data from Aug 31, 2022 to Aug 31, 2023
+        \item Approximately 160k trading records for options on SPX 
+    \end{itemize}
+    \begin{table}[h]
+    \centering
+    \begin{tabular}{|l|l|}
+    \hline
+    \textbf{Field Name} & \textbf{Description} \\
+    \hline
+    Date & Date of the record. \\
+    Strike & Strike price of the option contract. \\
+    Expiration & Expiration date of the option. \\
+    Call/Put & -- \\
+    Best Bid & Highest price a buyer is willing to pay. \\
+    Best Offer & Lowest price a seller is willing to accept. \\
+    Last Trade Date & -- \\
+    Volume & Total number traded. \\
+    Implied Volatility & \textit{Refer to following pages.} \\
+    Delta & $\partial P / \partial S$, used as measure of moneyness \\
+    \hline
+    \end{tabular}
+    \caption{Fields of interest in the Dataset}
+    \end{table}
+\end{frame}
+
+\begin{frame}{Related Work}
+    \begin{table}[h]
+    \centering
+    \begin{tabular}{|l|c|c|c|c|}
+    \hline
+    \textbf{Model} & \textbf{Compress} & \textbf{Interp.} & \textbf{Gen.} & \textbf{Examples} \\
+    \hline
+    Splines \& Kernel & & \tick & & \citet{orosi2012empirical}\\ \hline
+    PCA & \tick & & & \citet{Sylla2000}\\ \hline 
+    Parametric & \tick & \tick & & \citet{wolfram_volsurface_heston}\\ \hline
+    VAE & \tick & \tick & \tick & \citet{vaeorigin}\\
+    \hline
+    \end{tabular}
+    \caption{Comparison of Existing Methods}
+    \end{table}
+    The ability to generate is essential for risk management. 
+    \begin{quote}
+        ``What would happen to my portfolio if the volatility surface $\cdots$?''
+    \end{quote}
+\end{frame}
 
 \begin{frame}{Implied Volatility}
 \textbf{Black-Scholes Formula:} 
@@ -238,7 +289,7 @@ $$\mathcal{L}(\theta, \phi) = MSE(x, x') + \beta \cdot D_{\text{KL}}(q_\phi(z|x)
     \item Input for decoder: Latent variables $\bf{z}$
     \item Output: A grid surface
 \end{itemize}
-\textbf{Pointwise VAE (Bergeron et al., 2021):}
+\textbf{Pointwise VAE (\citet{vaeorigin}):}
 \begin{itemize}
     \item Input for decoder: $ (\mathbf{z}, K, T) $
     \item Output: A point $\sigma(T,K,z_1,...z_d)$
@@ -285,32 +336,31 @@ $$\mathcal{L}(\theta, \phi) = MSE(x, x') + \beta \cdot D_{\text{KL}}(q_\phi(z|x)
 \end{frame}
 
 
-% 4. Dataset
+% % 4. Dataset
+% \begin{frame}{Dataset: SPX Options from WRDS}
+% \begin{itemize}
+%     \item Source: Wharton Research Data Services (WRDS)
+%     \item Spot: SPX Options
+%     \item Time range: 08/31/2022 - 08/31/2023
+%     \item Key statistics:
+%     \begin{table}
+%     \centering
+%     \begin{tabular}{@{}ll@{}}
+%     \toprule
+%     Maturities & 1D–2Y \\
+%     Data points & 1.2M (post-filtering) \\
+%     \bottomrule
+%     \end{tabular}
+%     \end{table}
+% \end{itemize}
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.5\linewidth]{docs/slides/img/vlm_by_delta_brackets.png}
+%     \title{Average Volume by Delta Bracket}
+% \end{figure}
+
+% \end{frame}
 \section{Experiments}
-\begin{frame}{Dataset: SPX Options from WRDS}
-\begin{itemize}
-    \item Source: Wharton Research Data Services (WRDS)
-    \item Spot: SPX Options
-    \item Time range: 08/31/2022 - 08/31/2023
-    \item Key statistics:
-    \begin{table}
-    \centering
-    \begin{tabular}{@{}ll@{}}
-    \toprule
-    Maturities & 1D–2Y \\
-    Data points & 1.2M (post-filtering) \\
-    \bottomrule
-    \end{tabular}
-    \end{table}
-\end{itemize}
-\begin{figure}
-    \centering
-    \includegraphics[width=0.5\linewidth]{docs/slides/img/vlm_by_delta_brackets.png}
-    \title{Average Volume by Delta Bracket}
-\end{figure}
-
-\end{frame}
-
 % 5. Results: VAE Generated Surfaces
 \begin{frame}{VAE-Generated Volatility Surfaces}
 \todo
@@ -376,6 +426,10 @@ some figures for prediction
 
 \end{frame}
 
+\begin{frame}{Reference}
+    \bibliography{ref}
+    
+\end{frame}
 
 
 
