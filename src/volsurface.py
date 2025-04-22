@@ -121,7 +121,7 @@ class VolSurface(BaseEstimator, ABC):
         # Add a color bar to represent the scale
         mappable = plt.cm.ScalarMappable(cmap="coolwarm", norm=norm)  # Changed to coolwarm
         mappable.set_array(v)
-        fig.colorbar(mappable, ax=ax, shrink=0.5, aspect=10)
+        # fig.colorbar(mappable, ax=ax, shrink=0.5, aspect=10)
 
         return ax
 
