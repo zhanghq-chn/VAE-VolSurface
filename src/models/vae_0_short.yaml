@@ -1,0 +1,33 @@
+model:
+    type: vae
+    data: volsurfaces
+
+train:
+    batch_size: 64
+    epochs: 50
+    learning_rate: 0.01
+
+network:
+    latent_dim: 2
+    input_dim: 63
+    hidden_dim: [32, 32]
+
+
+hypertune:
+    learning_rate:
+        - 0.01
+        - 0.001
+        - 0.0001
+    batch_size:
+        - 32
+        - 64
+        - 128
+    latent_dim:
+        - 2
+        - 3
+        - 4
+    hidden_dim:
+        - [32, 32]
+        - 32
+    input_dim:
+        - 72

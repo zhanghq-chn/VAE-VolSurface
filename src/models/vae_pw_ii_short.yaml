@@ -1,0 +1,28 @@
+model:
+    type: vae_pw_ii
+    data: volsurfaces
+
+train:
+    batch_size: 128
+    epochs: 10
+    learning_rate: 0.001
+
+network:
+    latent_dim: 4
+    input_dim: 63
+    hidden_dim: 100
+
+
+hypertune:
+    learning_rate:
+        - 0.001
+        - 0.0001
+    # batch_size:
+    #     - 64
+    #     - 128
+    # latent_dim:
+    #     - 10
+    #     - 20
+    # hidden_dim:
+    #     - 50
+    #     - 100
