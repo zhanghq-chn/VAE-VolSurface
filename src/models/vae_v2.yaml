@@ -1,11 +1,12 @@
 model:
     type: vae
     data: volsurfaces
+    beta: 0.01
 
 train:
     batch_size: 128
     epochs: 20
-    learning_rate: 0.005
+    learning_rate: 0.02
 
 network:
     latent_dim: 4

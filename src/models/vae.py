@@ -4,14 +4,14 @@ import torch.nn as nn
 import numpy as np
 
 ## inner import 
-from src.models.basic_model import VaeEncoder as Encoder
+from src.models.basic_model import VaeEncoder2 as Encoder
 from src.models.basic_model import VaeDecoder as Decoder
 
 
 # VAE
 class VAE(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VAE, self).__init__()
+        super().__init__()
         self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
         self.decoder = Decoder(latent_dim, hidden_dim, input_dim)
         self.latent_dim = latent_dim

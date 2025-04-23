@@ -86,7 +86,28 @@ class VaeEncoder(nn.Module):
         logvar = latent[:, self.latent_dim:]
         return mean, logvar
     
-    
+## Encoder2
+class VaeEncoder2(nn.Module):
+    def __init__(self, input_dim, hidden_dims, latent_dim, activation=nn.ReLU):
+        super().__init__()
+        self.input_dim = input_dim
+        self.latent_dim = latent_dim
+        self.hidden_dims = hidden_dims
+        self.activation = activation
+        if not isinstance(hidden_dims, (list, tuple)):
+            self.hidden_dims = [hidden_dims]
+            self.mlp = nn.Linear(input_dim, hidden_dims)
+        else:
+            self.mlp = MLP(input_dim, hidden_dims[:-1],hidden_dims[-1], activation)
+            
+        self.mean_mlp = nn.Linear(self.hidden_dims[-1], latent_dim)
+        self.logvar_mlp = nn.Linear(self.hidden_dims[-1], latent_dim)
+            
+    def forward(self, x):
+        latent = self.mlp(x)
+        mean = self.mean_mlp(latent)
+        logvar = self.logvar_mlp(latent)
+        return mean, logvar
 ## Decoder
 class VaeDecoder(nn.Module):
     def __init__(self, latent_dim, hidden_dims, output_dim, activation=nn.ReLU):
