@@ -10,7 +10,7 @@ train:
 network:
     latent_dim: 2
     input_dim: 63
-    hidden_dim: [32, 32]
+    hidden_dim: [32]
 
 
 hypertune:

@@ -1,7 +1,7 @@
 model:
     type: vae_pw_ii
     data: volsurfaces
-    beta: 0.1
+    beta: 0.01
 
 train:
     batch_size: 128

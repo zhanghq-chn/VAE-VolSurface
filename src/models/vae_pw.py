@@ -51,6 +51,7 @@ class VAE_PW(nn.Module, ABC):
             pred, pw_vol, reduction="sum"
         )  
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        print(f"MSE: {MSE}, KLD: {KLD}")
         return MSE + beta * KLD
 
 # VAE_pw
