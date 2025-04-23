@@ -252,7 +252,8 @@ DATASOURCE:WRDS
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.5\linewidth]{docs/proposal/img/vaewiki.png}
+    \includegraphics[width=0.85\linewidth]{docs/slides/img/model_design_full.png}
+    \caption{Model Design}
 \end{figure}
 
 \begin{itemize}
@@ -267,15 +268,6 @@ $$\mathcal{L}(\theta, \phi) = MSE(x, x') + \beta \cdot D_{\text{KL}}(q_\phi(z|x)
 \section{Models}
 
 % 3. Model Architectures
-\begin{frame}{Model Design}
-    \begin{figure}
-    \centering
-    \includegraphics[width=0.9\linewidth]{docs/slides/img/model_design_full.png}
-    \title{Model Design}
-\end{figure}
-
-\end{frame}
-
 
 
 \begin{frame}{Model Design: Grid-Based vs. Pointwise VAE}
@@ -365,6 +357,19 @@ $$\mathcal{L}(\theta, \phi) = MSE(x, x') + \beta \cdot D_{\text{KL}}(q_\phi(z|x)
 \begin{frame}{VAE-Generated Volatility Surfaces}
 \todo
 some model: VAE generated, compare different latent dims
+\end{frame}
+
+\begin{frame}{VAE-Generated Volatility Surfaces}
+Grid-Based
+\end{frame}
+
+\begin{frame}{VAE-Generated Volatility Surfaces}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.65\linewidth]{docs/slides/img/vae_pw_ii_beta0.1.png}
+    \caption{Structure Comparison in Decoder}
+    \label{fig:enter-label}
+\end{figure}
 \end{frame}
 
 % 6. Latent Space Analysis
