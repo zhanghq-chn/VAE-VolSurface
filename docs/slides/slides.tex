@@ -13,6 +13,8 @@
 \usepackage{graphicx}
 \usepackage{natbib}
 \usepackage{pifont}
+\usepackage{pgfplots}
+\usepgfplotslibrary{fillbetween}
 % \usepackage[section]{placeins} % to make figures stay at the same section
 \usepackage{soul}
 \usepackage{subcaption}
@@ -66,11 +68,17 @@
 \usecolortheme{seahorse}
 \beamertemplatenavigationsymbolsempty
 
-
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
 
 
 \bibliographystyle{plainnat}
-\title{Generating Volatility Surfaces of Index Option with VAEs}
+\title{Generating Volatility Surfaces of Options with VAEs}
 \author{Haoqiang Zhang, Siqing Zou, Zhuolin Xiang}
 \date{\today}
 \setbeamertemplate{footline}[frame number]
@@ -82,51 +90,137 @@
     \tableofcontents
 \end{frame}
 
-\section{Overview}
-\begin{frame}{Overview}
-\todo
+% \section{Overview}
+% \begin{frame}{Overview}
+% \todo
 
-\st{1. Introducing vol surface(bs, implied vol + examples)} \\
-\st{2. VAE review - theory and image application}\\
-3. models and usage, VAE, vae pointwise(replicating)\\
-\st{4. dataset introduction - eg:fig}\\
-5. VAE generate result \\
-6. latent space analysis\\
-7. VAE pointwise result\\
-8. Result analysis\\
-9. working on ... maybe diffusion\\
-
-\end{frame}
-
-\section{Introduction}
-% 1. Volatility Surface Introduction
-% \begin{frame}{Options}
-% \textbf{Understand "Options":} A financial product based on a product with price $S$.
-
-% \begin{center}
-% \begin{tikzpicture}
-%     % Timeline line
-%     \draw[->, thick] (0,0) -- (8,0);
-
-%     % Events
-%     \foreach \x/\month in {
-%         0/\textbf{Now $t$},
-%         1/\textbf{$t_1$},
-%         5/\textbf{Maturity $T$},
-%     } {
-%         \draw (\x,0.1) -- (\x,-0.1);
-%         \node[below] at (\x,-0.2) {\month};
-%     }
-
-%     % Labeled milestones
-%     \node[above] at (0,0.2) {Paid:\underline{Option price $C(S_t,t)$}};
-%     \node[above] at (5,0.2) {Gain:$\max (S_T-K, 0)$};
-    
-% \end{tikzpicture}
-% \end{center}
-
+% \st{1. Introducing vol surface(bs, implied vol + examples)} \\
+% \st{2. VAE review - theory and image application}\\
+% 3. models and usage, VAE, vae pointwise(replicating)\\
+% \st{4. dataset introduction - eg:fig}\\
+% 5. VAE generate result \\
+% 6. latent space analysis\\
+% 7. VAE pointwise result\\
+% 8. Result analysis\\
+% 9. working on ... maybe diffusion\\
 
 % \end{frame}
+
+\section{Motivation}
+% 1. Volatility Surface Introduction
+\begin{frame}{Options}
+\begin{itemize}
+    \item Call options pay $\max\{0, S - K\}$ when it matures
+    \item Put options pay $\max\{0, K - S\}$ when it matures
+    \item Price is $\expect \left[\text{Payoff}\right]$ under some appropriate probability measure
+\end{itemize}
+
+\begin{center}
+\begin{tikzpicture}
+  \begin{axis}[
+      domain=50:150,
+      samples=200,
+      axis lines=middle,
+      xlabel={$S_T$},
+      ylabel={Payoff / PDF},
+      ymin=0,
+      ymax=0.05,
+      legend style={at={(0.65,0.85)},anchor=north west},
+      width=10cm,
+      height=6cm,
+      clip=false
+    ]
+
+    \def\K{110}       % Strike price
+    \def\mu{100}      % Mean of Gaussian
+    \def\sigma{15}    % Std dev of Gaussian
+
+    % Gaussian PDF
+    \addplot [
+      name path=gauss,
+      domain=50:150,
+      thick,
+      smooth,
+      black,
+    ] {1/(\sigma*sqrt(2*pi)) * exp(-((x-\mu)^2)/(2*\sigma^2))};
+    \addlegendentry{Asset Price Distribution}
+
+    % Baseline (x-axis)
+    \path[name path=axis] (axis cs:50,0) -- (axis cs:150,0);
+
+    % Fill area under PDF where x > K
+    \addplot [
+      fill=red,
+      fill opacity=0.3,
+    ] fill between [
+      of=gauss and axis,
+      soft clip={domain=110:150}
+    ];
+    
+    % Call option payoff (scaled for visibility)
+    \addplot [
+      domain=50:150,
+      thick,
+      blue,
+    ] {(x < \K) * 0 + (x >= \K) * (0.0005*(x-\K))};
+    \addlegendentry{Call Option Payoff (scaled)}
+
+  \end{axis}
+\end{tikzpicture}
+\end{center}
+\end{frame}
+
+\begin{frame}{Pricing \& Implied Volatility}
+\textbf{Black-Scholes Formula:} 
+\[
+C(S, t) = S \Phi(d_1) - K e^{-r(T-t)} \Phi(d_2)
+\]
+where \(d_1 = \frac{\ln(S/K) + (r + \sigma^2/2)(T-t)}{\sigma\sqrt{T-t}}\), \(d_2 = d_1 - \sigma\sqrt{T-t}\).\\
+\vspace{0.3cm}
+
+\textbf{Variables}: 
+\begin{itemize}
+    \item Interest Rate $r$
+    \item Strike $K$, Maturity $T$
+    \item Volatility $\sigma$: assumed to be constant, but practically not
+\end{itemize}
+\textbf{Implied Volatility (\(\sigma_{\text{implied}}\)):} Solved numerically from market data:
+\[
+C_{\text{market}} = C_{\text{BS}}(S, K, T, r, \sigma_{\text{implied}})
+\]
+
+for each $K$ and $T$.
+\end{frame}
+
+\begin{frame}{Volatility Surface}
+\begin{columns}
+    \begin{column}{0.46\textwidth}
+        Why study volatility surface?
+        \begin{itemize}
+            \item Understand market view
+            \item Price more complex products
+            \item Risk management
+        \end{itemize}
+        \vspace{0.5cm}
+        Goal
+        \begin{itemize}
+            \item How the surface evolves? (Prediction, hard)
+            \item What count as a reasonable surface? (Generation, doable)
+        \end{itemize}
+    \end{column}
+    
+    \begin{column}{0.48\textwidth}
+    
+\begin{figure}
+    \centering
+    \includegraphics[width=0.65\linewidth]{docs/slides/img/vol_sample.png}
+    \caption{Volatility Surface Samples}
+    \label{fig:enter-label}
+\end{figure}
+    \end{column}
+\end{columns}
+
+\end{frame}
 
 \begin{frame}{Dataset - \textit{OptionMetrics} from IvyDB}
     \begin{itemize}
@@ -176,57 +270,7 @@
     \end{quote}
 \end{frame}
 
-\begin{frame}{Implied Volatility}
-\textbf{Black-Scholes Formula:} 
-\[
-C(S, t) = S \Phi(d_1) - K e^{-r(T-t)} \Phi(d_2)
-\]
-where \(d_1 = \frac{\ln(S/K) + (r + \sigma^2/2)(T-t)}{\sigma\sqrt{T-t}}\), \(d_2 = d_1 - \sigma\sqrt{T-t}\).\\
-\vspace{0.3cm}
-
-\textbf{Variables}: 
-\begin{itemize}
-    \item Interest Rate $r$
-    \item Strike $K$, Maturity $T$
-    \item Volatility $\sigma$: assumed to be constant, but practically not
-\end{itemize}
-\textbf{Implied Volatility (\(\sigma_{\text{implied}}\)):} Solved numerically from market data:
-\[
-C_{\text{market}} = C_{\text{BS}}(S, K, T, r, \sigma_{\text{implied}})
-\]
-
-for each $K$ and $T$.
-\end{frame}
-
-\begin{frame}{Volatility Surface}
-\begin{columns}
-    \begin{column}{0.46\textwidth}
-        Why do we need volatility surface?
-        \begin{itemize}
-            \item $\sigma_{implied}$ shows a general view of market expectation.
-            \item Trading, Research, Risk Control
-        \end{itemize}
-        \vspace{0.5cm}
-        Why studying volatility surface?
-        \begin{itemize}
-            \item Underlying rules between different surfaces
-            \item Or even predict the surfaces
-        \end{itemize}
-    \end{column}
-    
-    \begin{column}{0.48\textwidth}
-    
-\begin{figure}
-    \centering
-    \includegraphics[width=0.65\linewidth]{docs/slides/img/vol_sample.png}
-    \caption{DATASOURCE:WRDS}
-    \label{fig:enter-label}
-\end{figure}
-DATASOURCE:WRDS
-    \end{column}
-\end{columns}
-
-\end{frame}
+\section{Models}
 
 % 2. VAE Theory Review
 \begin{frame}{Variational Autoencoder (VAE): Review}
@@ -263,9 +307,6 @@ DATASOURCE:WRDS
 \textbf{Minimize Loss Function:}
 $$\mathcal{L}(\theta, \phi) = MSE(x, x') + \beta \cdot D_{\text{KL}}(q_\phi(z|x) \parallel p(z))$$
 \end{frame}
-
-
-\section{Models}
 
 % 3. Model Architectures
 
@@ -352,46 +393,76 @@ $$\mathcal{L}(\theta, \phi) = MSE(x, x') + \beta \cdot D_{\text{KL}}(q_\phi(z|x)
 % \end{figure}
 
 % \end{frame}
-\section{Experiments}
+\section{Empirical Results}
 % 5. Results: VAE Generated Surfaces
 
 \begin{frame}{VAE-Generated Volatility Surfaces}
-\begin{figure}
-    \centering
-    \includegraphics[width=0.6\linewidth]{docs/slides/img/vae_grid_plot_from_5.png}
-    \caption{Grid-Based VAE VolSurface Generation}
-    \label{fig:enter-label}
-\end{figure}
+    \begin{minipage}{0.4\linewidth}
+        \begin{itemize}
+            \item 252 days (samples)
+            \item 9×8 grid for each surface
+        \end{itemize}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}{0.6\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{docs/slides/img/vae_grid_plot_from_5.png}
+        \captionof{figure}{Grid-Based VAE VolSurface Generation}
+    \end{minipage}
 \end{frame}
 
+
 \begin{frame}{VAE-Generated Volatility Surfaces}
+    \begin{minipage}{0.4\linewidth}
+        \begin{itemize}
+            \item 252 days (samples)
+            \item 9×8 grid for each surface
+            \item 1306655 pointwise $(K,T) - \text{vol}$
+        \end{itemize}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}{0.6\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{docs/slides/img/vae_pw_ii_plot_from_5.png}
+        \captionof{figure}{Pointwise VAE VolSurface Generation}
+    \end{minipage}
+\end{frame}
+
+% 7. Pointwise VAE Performance
+\begin{frame}{Pointwise VAE: Reconstruction}
 \begin{figure}
     \centering
-    \includegraphics[width=0.65\linewidth]{docs/slides/img/vae_pw_ii_plot_from_5.png}
-    \caption{Pointwise VAE VolSurface Generation}
+    \includegraphics[width=0.75\linewidth]{docs/slides/img/vae_pw_ii_recon.png}
+    \caption{Pointwise VAE Reconstruction}
     \label{fig:enter-label}
 \end{figure}
+
 \end{frame}
 
 % 6. Latent Space Analysis
 \begin{frame}{Latent Space Visualization}
 \begin{figure}
     \centering
-    \includegraphics[width=0.8\linewidth]{docs/slides/img/latent_vix.png}
-    \caption{Latent $\bf{z}$ with VIX coloring}
+    \includegraphics[width=0.8\linewidth]{docs/slides/img/latent_vix_grid.jpg}
+    \caption{Latent $\bf{z}$ with VIX coloring: Grid-based}
     \label{fig:enter-label}
 \end{figure}
 \end{frame}
 
-% 7. Pointwise VAE Performance
-\begin{frame}{Pointwise VAE: Interpolation Results}
-\todo
-some figures for prediction
-
+\begin{frame}{Latent Space Visualization}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\linewidth]{docs/slides/img/latent_vix.png}
+    \caption{Latent $\bf{z}$ with VIX coloring: Pointwise}
+    \label{fig:enter-label}
+\end{figure}
 \end{frame}
 
+
+
 % 8. Result Analysis
-\begin{frame}{Key Advantages of VAE Approach}
+\begin{frame}{Key Takeaways of VAE Approach}
+\textbf{Advantages:}
 \begin{itemize}
     \item \textbf{Flexibility}: Captures non-parametric volatility dynamics
     
@@ -404,11 +475,7 @@ some figures for prediction
 \begin{itemize}
     \item Sensitive to hyperparameters (\(\beta\)-VAE trade-off)
     \item Interpretability vs. traditional models
-\end{itemize}
-\textbf{Key findings:}
-\begin{itemize}
-    \item Volatility surfaces might be controlled by latent variables with a small size.
-    \item VAE might reduce the noise and extract some features in market data.
+    \item Mode collapse issue of pointwise VAE
 \end{itemize}
 \end{frame}
 
