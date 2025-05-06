@@ -1,3 +1,4 @@
+# For all code including jupyter notebooks and .yaml files, please refer to our github page https://github.com/zhanghq-chn/VAE-VolSurface
 import numpy as np
 
 import sys
