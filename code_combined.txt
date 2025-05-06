@@ -1,0 +1,1403 @@
+import numpy as np
+
+import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+sys.path.insert(0, os.getenv("SRC_PATH"))
+
+from src.volsurface import GridInterpVolSurface  # noqa: E402
+
+
+def test_grid_interpolated_vol_surface_linear_function():
+    # interpolate a simple linear function
+    rng = np.random.default_rng(42)
+    delta = rng.uniform(0, 1, 10000)
+    maturity = rng.uniform(0, 1, 10000)
+    vol = delta + maturity
+
+    X = np.column_stack([delta, maturity])
+    y = vol
+
+    # Fit the model
+    model = GridInterpVolSurface(kx=1, ky=1)
+    model.fit(X, y)
+
+    # Test predict accuracy
+    pred = model.predict(np.array([[0.55, 0.8]]))[0]
+    expected = 0.55 + 0.8
+    assert np.isclose(pred, expected, atol=0.02)
+
+    delta_grid = np.linspace(0.2, 0.8, 10)
+    maturity_grid = np.linspace(0.5, 1.5, 8)
+    grid_vol = model.predict_grid(delta_grid, maturity_grid)
+    assert grid_vol.shape == (len(delta_grid), len(maturity_grid))
+
+
+def test_grid_interpolated_vol_surface_with_missing_data():
+    # interpolate a simple linear function with missing data
+    rng = np.random.default_rng(42)
+    delta = rng.uniform(0, 1, 10000)
+    maturity = rng.uniform(0, 1, 10000)
+    vol = delta + maturity
+
+    mask_delta = (0.4 < delta) & (delta < 0.6)
+    mask_maturity = (0.4 < maturity) & (maturity < 0.6)
+    mask = (~mask_delta) & (~mask_maturity)
+    delta = delta[mask]
+    maturity = maturity[mask]
+    vol = vol[mask]
+
+    X = np.column_stack([delta, maturity])
+    y = vol
+
+    model = GridInterpVolSurface(kx=1, ky=1)
+    model.fit(X, y)
+
+    pred = model.predict(np.array([[0.5, 1.0]]))[0]
+    expected = 0.5 + 1.0
+    assert np.isclose(pred, expected, atol=0.02)
+
+
+def test_grid_interpolated_vol_surface_constant_function():
+    # interpolate a constant function
+    rng = np.random.default_rng(42)
+    delta = rng.uniform(0, 1, 10000)
+    maturity = rng.uniform(0, 1, 10000)
+    vol = delta + maturity
+
+    mask_delta = (0.4 < delta) & (delta < 0.6)
+    mask_maturity = (0.4 < maturity) & (maturity < 0.6)
+    mask = (~mask_delta) & (~mask_maturity)
+    delta = delta[mask]
+    maturity = maturity[mask]
+    vol = vol[mask]
+
+    X = np.column_stack([delta, maturity])
+    y = np.ones_like(vol)
+
+    model = GridInterpVolSurface(kx=1, ky=1)
+    model.fit(X, y)
+
+    delta_grid = np.linspace(0.2, 0.8, 10)
+    maturity_grid = np.linspace(0.5, 1.5, 8)
+    grid_vol = model.predict_grid(delta_grid, maturity_grid)
+    assert np.isclose(grid_vol, 1.0).all()
+
+
+def test_grid_interpolated_vol_surface_with_nan_and_peaks():
+    n = 7
+    mid = n // 2
+    x_axis = np.linspace(-0.5, 0.5, n)
+    y_axis = np.linspace(0.1, 2.0, n)
+
+    delta, maturity = np.meshgrid(x_axis, y_axis)
+    delta = delta.flatten()
+    maturity = maturity.flatten()
+
+    vol = np.full((n, n), np.nan)
+    vol[mid - 1 : mid + 2, mid - 1 : mid + 2] = 1.0
+    vol[mid, mid] = 2.0
+
+    vol = vol.flatten()
+    model = GridInterpVolSurface(kx=1, ky=1, delta_grid=x_axis, maturity_grid=y_axis)
+    X = np.column_stack([delta, maturity])
+    y = vol
+    model.fit(X, y)
+
+    expected = np.ones((n, n))
+    expected[mid, mid] = 2.0
+    assert np.allclose(expected, model.predict(X).reshape((n, n)))
+
+
+def test_grid_interpolated_vol_surface_with_complex_nan_pattern():
+    n = 11
+    mid = n // 2
+    x_axis = np.linspace(-0.5, 0.5, n)
+    y_axis = np.linspace(0.1, 2.0, n)
+
+    delta, maturity = np.meshgrid(x_axis, y_axis)
+    delta = delta.flatten()
+    maturity = maturity.flatten()
+
+    vol = np.full((n, n), np.nan)
+    vol[mid - 4 : mid + 5, mid - 4 : mid + 5] = 1.0
+    vol[mid - 3 : mid + 4, mid - 3 : mid + 4] = np.nan
+    vol[mid, mid] = 2.0
+
+    vol = vol.flatten()
+    model = GridInterpVolSurface(kx=1, ky=1, delta_grid=x_axis, maturity_grid=y_axis)
+    X = np.column_stack([delta, maturity])
+    y = vol
+    model.fit(X, y)
+
+    pred = model.predict(X).reshape((n, n))
+    assert np.allclose(np.ones(n), pred[0])
+    assert np.allclose(np.linspace(1.0, 2.0, 5), pred[mid - 4 : mid + 1, mid])
+    assert np.allclose(
+        np.linspace(1.0, 2.0, 4), np.diag(pred[np.ix_(range(2, 6), range(2, 6))])
+    )
+from __future__ import annotations
+
+import nox
+
+nox.options.sessions = ["lint", "tests"]
+
+
+@nox.session
+def lint(session: nox.Session) -> None:
+    """
+    Run the linter.
+    """
+    # session.install("pre-commit")
+    session.run("pre-commit", "run", "--all-files", *session.posargs, external=True)
+
+
+@nox.session
+def tests(session: nox.Session) -> None:
+    """
+    Run the unit and regular tests.
+    """
+    # session.install(".[test]")
+    session.run("pytest", *session.posargs, external=True)
+
+
+@nox.session
+def build(session: nox.Session) -> None:
+    """
+    Build an SDist and wheel.
+    """
+
+    session.install("build")
+    session.run("python", "-m", "build")
+import numpy as np
+import pandas as pd
+import torch
+from torch.utils.data import Dataset
+import json
+from src.volsurface import KernelVolSurface
+from .logger import setup_logger
+logger = setup_logger(__name__)
+
+
+class VolSurfPointwiseDataset(Dataset):
+    def __init__(self, pw_grid_data, pw_vol_data, surface_data, mapping_ids):
+        self.pw_grid_data = pw_grid_data
+        self.pw_vol_data = pw_vol_data
+        self.surface_data = surface_data
+        self.mapping_ids = mapping_ids
+
+    def __len__(self):
+        return len(self.pw_grid_data)
+
+    def __getitem__(self, idx):
+        pw_grid = self.pw_grid_data[idx]
+        pw_vol = self.pw_vol_data[idx]
+        mapping = self.mapping_ids[idx]
+        surface = self.surface_data[mapping]
+        return pw_grid, pw_vol, surface
+
+
+def clean_data(df_raw):
+    df_raw['ttm'] = (df_raw['exdate'] - df_raw['date']).dt.days
+
+    idx_filter_bid = df_raw['best_bid'] > 0.0
+    idx_filter_spread = \
+        (df_raw['best_offer'] - df_raw['best_bid'] >= 0.0) & \
+        (((df_raw['best_offer'] - df_raw['best_bid']) / (df_raw['best_bid'] + df_raw['best_offer'] ) * 2) <= 0.1) # this alone filters about 6%
+    idx_filter_impl_vol = ~ df_raw['impl_volatility'].isna()
+    idx_filter_leverage = df_raw['delta'].abs().between(*np.nanquantile(df_raw['delta'].abs(), [0.01, 0.99]))
+    idx_filter_no_trade_consistency = (df_raw['volume'] > 0) == (df_raw['date'] == df_raw['last_date']) # probably corrupted data, current count of only 86
+    idx_filter_ttm = df_raw['ttm'] < 1e5
+
+    df = df_raw[
+        idx_filter_bid & 
+        idx_filter_spread & 
+        idx_filter_impl_vol & 
+        idx_filter_leverage & 
+        idx_filter_no_trade_consistency &
+        idx_filter_ttm
+    ].copy()
+
+    logger.info(f"Bad data - Filtered {df_raw.shape[0] - df.shape[0]} rows, Retained sample {df.shape[0] / df_raw.shape[0]:.2%}")
+
+    # print(f"Retained sample {df.shape[0] / df_raw.shape[0]:.2%}")
+    df['days_since_last'] = (df['date'] - df['last_date']).dt.days
+    df['traded'] = (df['volume'] > 0)
+
+    df['consecutive_traded'] = df.groupby('symbol')['traded'].transform(
+        lambda x: (x != x.shift(1)).cumsum()
+    )
+    df.loc[~df['traded'], 'consecutive_traded'] = np.nan
+
+    df['consecutive_traded_len'] = df.groupby(['symbol', 'consecutive_traded'])['traded'].transform('count')
+
+    logger.info("Consecutive trading stats completed")
+
+    def filter_consecutive_trading(df, consecutive_threshold):
+        """
+        Filter the DataFrame to include only rows where the options have been trading for at least n days consecutively.
+        """
+        consecutive_traded_start = df.loc[
+            (df['traded']) &
+            (df['consecutive_traded_len'] >= consecutive_threshold)]
+        consecutive_traded_start = consecutive_traded_start.loc[
+            (consecutive_traded_start.groupby('symbol').cumcount() == 0), 
+            ['symbol', 'date']
+        ].rename(columns={'date': 'consecutive_traded_start'})
+        df_active = df.merge(
+            consecutive_traded_start,
+            how='left',
+            on='symbol'
+        )
+        df_active = df_active[df_active['date'] >= df_active['consecutive_traded_start']]
+        return df_active
+
+    df_active = filter_consecutive_trading(df, consecutive_threshold=5)
+
+    logger.info(f"Consecutive trading - Filtered {df.shape[0] - df_active.shape[0]} rows, Retained sample {df_active.shape[0] / df.shape[0]:.2%}")
+
+    delta = df_active['delta']
+    df_active['moneyness'] = np.where(delta > 0, delta, 1 + delta)
+
+    logger.info("Moneyness calculation completed")
+
+    return df_active
+
+def generate_predicted_vol_surfaces(df, delta_grid, maturity_grid, output_path):
+    """
+    Generate predicted volatility surfaces and save them as a JSON file.
+
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame containing the cleaned data.
+    delta_grid : np.ndarray
+        Grid of delta values.
+    maturity_grid : np.ndarray
+        Grid of maturity values.
+    output_path : str
+        Path to save the predicted volatility surfaces JSON file.
+    """
+    unique_dates = df["date"].unique()
+    predicted_vol_surfaces = {}
+
+    for date in unique_dates:
+        logger.info(f"Processing date: {date}")
+
+        # Filter data for the current date
+        delta = df.loc[(df["date"] == date), "delta"]
+        maturity = df.loc[(df["date"] == date), "ttm"]
+        vol = df.loc[(df["date"] == date), "impl_volatility"]
+
+        if len(delta) == 0 or len(maturity) == 0 or len(vol) == 0:
+            logger.warning(f"No data for date {date}")
+            continue
+        X = np.column_stack([delta, maturity])
+        y = vol
+
+        # Fit KernelVolSurface model
+        kernel_model = KernelVolSurface()
+        kernel_model.fit(X, y)
+
+        # Predict volatility on the grid
+        grid_vol = kernel_model.predict_grid(delta_grid, maturity_grid)
+        predicted_vol_surfaces[str(date)] = grid_vol.tolist()
+
+    # Save the results to a JSON file
+    with open(output_path, "w") as f:
+        json.dump(predicted_vol_surfaces, f, indent=4)
+    logger.info(f"Predicted volatility surfaces saved to {output_path}")import logging
+
+
+def setup_logger(name=None, level=logging.INFO):
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] %(name)s (%(lineno)d) : %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    logger.propagate = False
+
+    return logger
+import yaml
+from typing import Any, Dict, Iterator, Union
+from pathlib import Path
+import re
+from itertools import product
+from collections.abc import Iterable
+
+
+class YamlParser:
+    """
+    A utility class for parsing and manipulating YAML files.
+
+    Methods:
+        __init__(file_path: Union[str, Path]) -> None:
+            Initializes the YamlParser with the path to the YAML file.
+        load_yaml() -> Dict[str, Any]:
+            Loads the YAML file and returns its contents as a dictionary.
+        save_yaml(data: Dict[str, Any]) -> None:
+            Saves the provided dictionary to the YAML file.
+        load_yaml_matrix() -> Iterator[Dict[str, Any]]:
+            Loads a matrix from a YAML file and yields dictionaries representing all possible combinations of the matrix values.
+        force_iterable(data: dict[Any, Any]) -> dict[Any, Any]:
+            Recursively converts all dictionary values to lists if they are not already lists.
+    """
+
+    def __init__(self, file_path: Union[str, Path]) -> None:
+        self.file_path = file_path
+
+    def load_yaml(self) -> Dict[str, Any]:
+        with open(self.file_path, "r") as file:
+            data: Dict[str, Any] = yaml.safe_load(file)
+        return data
+
+    def save_yaml(self, data: Dict[str, Any]) -> None:
+        with open(self.file_path, "w") as file:
+            yaml.safe_dump(data, file)
+
+    def load_yaml_matrix(self) -> Iterator[Dict[str, Any]]:
+        """
+        Load a matrix from a YAML file and yield dictionaries representing all possible combinations of the matrix values.
+        The YAML file should contain a "matrix" key with a dictionary of lists as its value. This method will generate all
+        possible combinations of the values in the lists and yield them as dictionaries.
+        Returns:
+            Iterator[Dict[str, Any]]: An iterator over dictionaries, each representing a unique combination of the matrix values.
+        Raises:
+            FileNotFoundError: If the specified YAML file does not exist.
+            yaml.YAMLError: If there is an error parsing the YAML file.
+        """
+
+        with open(self.file_path, "r") as file:
+            original_dict = yaml.safe_load(file)
+            matrix = original_dict.get("matrix", None)
+        if matrix:
+            original_dict.pop("matrix")
+            file_text = yaml.dump(original_dict)
+            keys, values = zip(*self.force_iterable(matrix).items())
+            combinations = (dict(zip(keys, combo)) for combo in product(*values))
+            for comb in combinations:
+                yield yaml.safe_load(
+                    re.sub(r"\$\{(\w+)\}", lambda m: str(comb[m.group(1)]), file_text)
+                )
+        else:
+            yield self.load_yaml()
+
+    @staticmethod
+    def force_iterable(data: dict[Any, Any]) -> dict[Any, Any]:
+        """
+        Recursively converts all dictionary values to lists if they are not already lists.
+        Args:
+            data (dict): The dictionary to convert.
+        Returns:
+            dict: The dictionary with all values converted to lists.
+        """
+        for key, value in data.items():
+            if not isinstance(value, Iterable) or isinstance(value, (str, bytes)):
+                data[key] = [value]
+        return data
+import torch
+import torch.nn as nn
+import numpy as np
+from abc import ABC, abstractmethod
+# from rotary_embedding_torch import RotaryEmbedding
+
+## Inner import
+from src.models.basic_model import VaeEncoder as Encoder
+from src.models.basic_model import VaeDecoder as Decoder
+from src.models.basic_model import EmbeddingMLP, SinusoidalPositionalEmbedding, PositionalEmbedding2D
+
+
+class VAE_PW(nn.Module, ABC):
+    def __init__(self, input_dim, hidden_dims, latent_dim):
+        '''Set up the model:
+        1. Encoder/Decoder
+        2. Positional Embedding
+        3. Embedding MLP'''
+        super().__init__()
+        self.input_dim = input_dim
+        self.hidden_dims = hidden_dims
+        self.latent_dim = latent_dim
+        
+    
+    @abstractmethod
+    def forward(self, surface, pw_grid):
+        '''Forward pass of the model'''
+        pass
+
+    @abstractmethod
+    def generate(self, latents, pw_grid):
+        '''Generate the vol surface from the latent space'''
+        pass
+
+    def get_latent_generator(self, mean=0.0, std=1.0, seed=42):
+        def generator():
+            rng = np.random.default_rng(seed)
+            while True:
+                yield rng.normal(mean, std, size=self.latent_dim)
+        return generator()
+        
+    @staticmethod
+    def reparameterize(mean, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mean + eps * std
+    
+    # Loss function
+    def loss_function(pred, pw_vol, mean, logvar, beta):
+        MSE = nn.functional.mse_loss(
+            pred, pw_vol, reduction="sum"
+        )  
+        KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        # print(f"MSE: {MSE}, KLD: {KLD}")
+        return MSE + beta * KLD
+
+# VAE_pw
+class VAE_PW_I(VAE_PW): # replication of the paper, cat k and t to the latent space
+    def __init__(self, input_dim, hidden_dim, latent_dim):
+        super().__init__(input_dim, hidden_dim, latent_dim)
+        self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
+        self.decoder = Decoder(latent_dim + 2, hidden_dim, 1)
+
+    def forward(self, surface, pw_grid):
+        mean, logvar = self.encoder(surface)
+        z = self.reparameterize(mean, logvar)
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        z_combined = torch.cat([z, delta.view(-1, 1), ttm.view(-1, 1)], dim=1)
+        pred = self.decoder(z_combined)
+        return pred, mean, logvar
+    
+    def generate(self, latents, pw_grid):
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        z_combined = torch.cat([latents, delta.view(-1, 1), ttm.view(-1, 1)], dim=1)
+        pred = self.decoder(z_combined)
+        return pred
+    
+class VAE_PW_II(VAE_PW): # improved version, add k&t embedding
+    def __init__(self, input_dim, hidden_dim, latent_dim):
+        super().__init__(input_dim, hidden_dim, latent_dim)
+        self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
+        self.decoder = Decoder(latent_dim, hidden_dim, 1)
+        
+        self.dltemb_net = EmbeddingMLP(10, latent_dim)
+        self.ttmemb_net = EmbeddingMLP(10,latent_dim)
+        self.dltembed = SinusoidalPositionalEmbedding(10)
+        self.ttmembed = SinusoidalPositionalEmbedding(10)
+        
+
+    def forward(self, surface, pw_grid):
+        mean, logvar = self.encoder(surface)
+        z = self.reparameterize(mean, logvar)
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        delta_embed, ttm_embed = self.dltembed(delta), self.ttmembed(ttm)
+        delta_out, ttm_out = self.dltemb_net(delta_embed), self.ttmemb_net(ttm_embed)
+        z_combined = z + delta_out + ttm_out
+        # z_combined = torch.cat([z, delta_out, ttm_out], dim=1)
+        pred = self.decoder(z_combined)
+        return pred, mean, logvar
+
+    def generate(self, latents, pw_grid):
+        delta, ttm = pw_grid[:, 0], pw_grid[:, 1]
+        ttm[:] = torch.log(ttm) / 3 - 1
+        delta_embed, ttm_embed = self.dltembed(delta), self.ttmembed(ttm)
+        delta_out, ttm_out = self.dltemb_net(delta_embed), self.ttmemb_net(ttm_embed)
+        z_combined = latents + delta_out + ttm_out
+        pred = self.decoder(z_combined)
+        return predfrom src.utils.yaml_helper import YamlParser
+
+vae_dict = YamlParser("src/models/vae.yaml").load_yaml()
+print(vae_dict)
+import torch
+import torch.nn as nn
+import numpy as np
+import math
+
+## positional embedding (mentioned by gls)
+class SinusoidalPositionalEmbedding(nn.Module):
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        if embedding_dim % 2 != 0:
+            raise ValueError("embedding_dim must be even")
+
+    def forward(self, timesteps):
+        """
+        timesteps: Tensor of shape [batch_size] or scalar, dtype int or float
+        Returns: Tensor of shape [batch_size, embedding_dim]
+        """
+        half_dim = self.embedding_dim // 2
+        freqs = torch.exp(-math.log(10000) * torch.arange(half_dim, dtype=torch.float32) / half_dim).to(timesteps.device)
+        args = timesteps[:, None].float() * freqs[None]
+        emb = torch.cat([torch.sin(args), torch.cos(args)], dim=-1)
+        return emb  # shape: [batch_size, embedding_dim]
+    
+class MLP(nn.Module):
+    def __init__(self, input_dim, hidden_dims, output_dim, activation=nn.ReLU):
+        super().__init__()
+
+        if not isinstance(hidden_dims, (list, tuple)):
+            hidden_dims = [hidden_dims]
+        if not hidden_dims:
+            raise ValueError("hidden_dims must not be empty")
+
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dims = hidden_dims
+
+        self.hidden_layers = nn.ModuleList()
+        last_dim = input_dim
+        for hidden_dim in hidden_dims:
+            self.hidden_layers.append(nn.Linear(last_dim, hidden_dim))
+            last_dim = hidden_dim
+        
+        self.output_layer = nn.Linear(last_dim, output_dim)
+        self.activation = activation()
+
+    def forward(self, x):
+        for layer in self.hidden_layers:
+            x = self.activation(layer(x))
+        x = self.output_layer(x)
+        return x
+    
+## 2Dpositional embedding
+class PositionalEmbedding2D(nn.Module):
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+    def forward(self, timesteps):
+        """
+        timesteps: Tensor of shape [batch_size] or scalar, dtype int or float
+        Returns: Tensor of shape [batch_size, embedding_dim]
+        """
+        half_dim = self.embedding_dim // 2
+        freqs = torch.exp(-math.log(10000) * torch.arange(half_dim, dtype=torch.float32) / half_dim).to(timesteps.device)
+        args = timesteps[:, None].float() * freqs[None]
+        emb = torch.cat([torch.sin(args), torch.cos(args)], dim=-1)
+        return emb
+    
+    
+## Encoder
+class VaeEncoder(nn.Module):
+    def __init__(self, input_dim, hidden_dims, latent_dim, activation=nn.ReLU):
+        super().__init__()
+
+        self.input_dim = input_dim
+        self.latent_dim = latent_dim
+        self.hidden_dims = hidden_dims
+
+        if not hidden_dims:
+            raise ValueError("hidden_dims must not be empty")
+        self.mlp = MLP(input_dim, hidden_dims, 2 * latent_dim, activation)
+
+    def forward(self, x):
+        latent = self.mlp(x)
+        mean = latent[:, :self.latent_dim]
+        logvar = latent[:, self.latent_dim:]
+        return mean, logvar
+    
+## Encoder2
+class VaeEncoder2(nn.Module):
+    def __init__(self, input_dim, hidden_dims, latent_dim, activation=nn.ReLU):
+        super().__init__()
+        self.input_dim = input_dim
+        self.latent_dim = latent_dim
+        self.hidden_dims = hidden_dims
+        self.activation = activation
+        if not isinstance(hidden_dims, (list, tuple)):
+            self.hidden_dims = [hidden_dims]
+            self.mlp = nn.Linear(input_dim, hidden_dims)
+        else:
+            self.mlp = MLP(input_dim, hidden_dims[:-1],hidden_dims[-1], activation)
+            
+        self.mean_mlp = nn.Linear(self.hidden_dims[-1], latent_dim)
+        self.logvar_mlp = nn.Linear(self.hidden_dims[-1], latent_dim)
+            
+    def forward(self, x):
+        latent = self.mlp(x)
+        mean = self.mean_mlp(latent)
+        logvar = self.logvar_mlp(latent)
+        return mean, logvar
+## Decoder
+class VaeDecoder(nn.Module):
+    def __init__(self, latent_dim, hidden_dims, output_dim, activation=nn.ReLU):
+        super().__init__()
+        self.latent_dim = latent_dim
+        self.hidden_dims = hidden_dims
+        self.output_dim = output_dim
+
+        self.mlp = MLP(latent_dim, hidden_dims, output_dim, activation)
+
+    def forward(self, z):
+        return self.mlp(z)
+    
+## MLP for embedding
+## A separate MLP for timestep embedding
+class EmbeddingMLP(nn.Module):
+    def __init__(self, embedding_dim, latent_dim):
+        super().__init__()
+        self.embed_net = MLP(
+            input_dim=embedding_dim, 
+            hidden_dims=latent_dim, 
+            output_dim=latent_dim, 
+            activation=nn.SiLU
+        )
+
+    def forward(self, t_emb):
+        return self.embed_net(t_emb)  
+import torch
+import torch.nn as nn
+import numpy as np
+import math
+
+## inner import 
+from src.models.basic_model import EmbeddingMLP, SinusoidalPositionalEmbedding
+    
+class NoisePredictor(nn.Module):
+    def __init__(self, latent_dim, hidden_dim, embedding_dim):
+        super(NoisePredictor, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(latent_dim + 1, hidden_dim),  # add t to predict noise
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, latent_dim),
+        )
+        self.t_embed = SinusoidalPositionalEmbedding(embedding_dim)
+        self.t_net = EmbeddingMLP(embedding_dim, latent_dim)
+        
+    def forward(self, z, t_norm):
+        #### FIX
+        t_embed = self.t_embed(t_norm.squeeze()) # shape: [batch_size, embedding_dim]
+        t_out = self.t_net(t_embed)  # shape: [batch_size, latent_dim]
+        z_t = z + t_out
+        # predict noise
+        return self.model(z_t)
+
+
+class LDM(nn.Module):
+    def __init__(self, autoencoder, config):
+        super(LDM, self).__init__()
+        # default vae model
+        # FIXED PARAMS
+        self.autoencoder = autoencoder
+        self.autoencoder.requires_grad_(False)
+        self.betas = None
+        # TO TRAIN
+        self.noise_predictor = NoisePredictor(config["latent_dim"], config["hidden_dim"], config["embedding_dim"])
+
+    def forward(self, x, t):
+        # encode input into latent space
+        mean, logvar = self.autoencoder.encoder(x)
+        noise_pred = self.noise_predictor(mean, t)
+        return noise_pred
+
+    def set_beta(self, timesteps, device):
+        self.betas = nn.Parameter(self.linear_beta_schedule(timesteps).to(device), requires_grad=False)
+
+    def get_loss(self, data, t_rand):
+        z, _ = self.autoencoder.encoder(data)
+        z_t, noise = self.forward_diffusion(z, t_rand, self.betas)
+        noise_pred = self.noise_predictor(z_t, t_rand/len(self.betas))
+        return self.loss_function(noise_pred, noise)
+    
+    # Diffusion Process Utilities
+    @staticmethod
+    def linear_beta_schedule(timesteps):
+        beta_start = 1e-4
+        beta_end = 0.02
+        return torch.linspace(beta_start, beta_end, timesteps)
+
+    @staticmethod
+    def forward_diffusion(z, t, betas):
+        sqrt_alphas = torch.sqrt(1 - betas[t]).view(-1, 1)
+        sqrt_one_minus_alphas = torch.sqrt(betas[t]).view(-1, 1)
+        noise = torch.randn_like(z)
+        z_t = sqrt_alphas * z + sqrt_one_minus_alphas * noise
+        return z_t, noise
+
+    # Loss Function
+    @staticmethod
+    def loss_function(noise_pred, noise):
+        return nn.functional.mse_loss(noise_pred, noise)
+import torch
+import torch.nn as nn
+
+import numpy as np
+
+## inner import 
+from src.models.basic_model import VaeEncoder2 as Encoder
+from src.models.basic_model import VaeDecoder as Decoder
+
+
+# VAE
+class VAE(nn.Module):
+    def __init__(self, input_dim, hidden_dim, latent_dim):
+        super().__init__()
+        self.encoder = Encoder(input_dim, hidden_dim, latent_dim)
+        self.decoder = Decoder(latent_dim, hidden_dim, input_dim)
+        self.latent_dim = latent_dim
+
+    # Key part: Reparameterization trick
+    def reparameterize(self, mean, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mean + eps * std
+
+    def forward(self, x):
+        mean, logvar = self.encoder(x)
+        z = self.reparameterize(mean, logvar)
+        x_recon = self.decoder(z)
+        return x_recon, mean, logvar
+
+    # Loss function
+    @staticmethod
+    def loss_function(x_recon, x, mean, logvar, beta):
+        MSE = nn.functional.mse_loss(x_recon, x, reduction="sum")
+        KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())  # 0.5
+        return MSE + beta * KLD
+    
+    def get_latent_generator(self, mean=0.0, std=1.0, seed=42):
+        def generator():
+            rng = np.random.default_rng(seed)
+            while True:
+                yield rng.normal(mean, std, size=self.latent_dim)
+        return generator()
+    
+    def generate(self, latents):
+        z_combined = latents
+        pred = self.decoder(z_combined)
+        return pred
+from abc import ABC, abstractmethod
+import numpy as np
+from sklearn.base import BaseEstimator
+import matplotlib.pyplot as plt
+from scipy.interpolate import RectBivariateSpline, griddata
+from statsmodels.nonparametric.kernel_regression import KernelReg
+import torch
+
+
+class VolSurface(BaseEstimator, ABC):
+    def fit(self, X, y):
+        """
+        Fit the vol surface to the data.
+        X: 2D array-like of shape (n_samples, 2) with delta and maturity.
+        y: 1D array-like of shape (n_samples,) with implied volatilities.
+        """
+        self._fitted = True
+        self._maturity_range = (np.min(X[:, 1]), np.max(X[:, 1]))
+        self._fit(X[:, 0], X[:, 1], y)
+        return self
+
+    def predict(self, X):
+        """
+        Evaluate implied volatility at the given strike and maturity.
+        """
+        return self._predict(X[:, 0], X[:, 1])
+    
+    def fit_grid(self, delta, maturity, vol):
+        """
+        Fits a grid of implied volatilities based on delta and maturity values.
+        This method takes in arrays of delta, maturity, and corresponding volatility
+        values, constructs a grid using these inputs, and fits the model to the data.
+
+        Parameters:
+        -----------
+        delta : 1D array-like
+            Array of delta values representing the moneyness of options.
+        maturity : 1D array-like
+            Array of maturity values representing the time to expiration of options.
+        vol : 2D array-like
+            Array of implied volatility values corresponding to the delta and maturity grid.
+         
+        Returns:
+        --------
+        self : object
+            Returns the instance of the class after fitting the model.
+        """
+        
+        d, m = np.meshgrid(delta, maturity, indexing="ij")
+        X = np.column_stack([d.ravel(), m.ravel()])
+        y = vol.ravel()
+        self.fit(X, y)
+        return self
+
+    def predict_grid(self, delta, maturity):
+        """
+        Evaluate implied volatility at the given strike and maturity.
+        delta: 1D array-like of shape (n_samples,) with deltas.
+        maturity: 1D array-like of shape (n_samples,) with maturities.
+        """
+        d, m = np.meshgrid(delta, maturity, indexing="ij")
+        vol = self._predict(d.ravel(), m.ravel())
+        return vol.reshape(d.shape)
+
+    @abstractmethod
+    def _fit(self, delta, maturity, vol):
+        """
+        Fit the vol surface to the data.
+        delta: 1D array-like of shape (n_samples,) with deltas.
+        maturity: 1D array-like of shape (n_samples,) with maturities.
+        vol: 1D array-like of shape (n_samples,) with implied volatilities.
+        """
+        pass
+
+    @abstractmethod
+    def _predict(self, delta, maturity) -> np.ndarray:
+        """
+        Evaluate implied volatility at the given strike and maturity.
+        delta: 1D array-like of shape (n_samples,) with deltas.
+        maturity: 1D array-like of shape (n_samples,) with maturities.
+        """
+        pass
+
+    def plot(self, ax=None, resolution=10, delta_range=(None, None), maturity_range=(None, None), **kwargs):
+        """
+        Plot the vol surface.
+        """
+        if not hasattr(self, "_fitted") or not self._fitted:
+            raise RuntimeError("VolSurface must be fitted before calling plot().")
+
+        delta_min, delta_max = delta_range
+        delta_min = delta_min or 0
+        delta_max = delta_max or 1
+
+        maturity_min, maturity_max = maturity_range
+        maturity_min = maturity_min or self._maturity_range[0]
+        maturity_max = maturity_max or self._maturity_range[1]
+
+        delta = np.linspace(delta_min, delta_max, resolution + 1)
+        delta = delta[(0 < delta) & (delta < 1)]
+        maturity = np.linspace(maturity_min, maturity_max, resolution + 1)
+
+        d, m = np.meshgrid(delta, maturity, indexing="ij")
+        v = self.predict_grid(delta, maturity)
+
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection="3d")
+
+        # Normalize the volatility values for coloring
+        norm = plt.Normalize(v.min(), v.max())  # or min(v.max(), 0.3) for lighter feel
+        colors = plt.cm.coolwarm(norm(v))
+
+        # Plot with shade off and higher resolution stride
+        surf = ax.plot_surface(d, m, v, facecolors=colors, rstride=1, cstride=1, shade=False, **kwargs)
+        ax.set_xlabel("Delta")
+        ax.set_ylabel("Maturity (Days)")
+        ax.set_zlabel("Implied Volatility")
+        ax.set_title("Vol Surface")
+
+        # Add a color bar to represent the scale
+        mappable = plt.cm.ScalarMappable(cmap="coolwarm", norm=norm)  # Changed to coolwarm
+        mappable.set_array(v)
+        # fig.colorbar(mappable, ax=ax, shrink=0.5, aspect=10)
+
+        return ax
+
+
+class GridInterpVolSurface(VolSurface):
+    """
+    A class to fit a volatility surface using grid interpolation.
+    This class uses a grid-based approach to interpolate the implied volatility
+    surface based on the provided delta and maturity data.
+    The value of each grid point is computed as the average of the input implied volatilities.
+    For inputs that is not on the grid, the class uses interpolation to estimate the implied volatility.
+    """
+
+    def __init__(self, delta_grid=None, maturity_grid=None, kx=3, ky=3):
+        self.kx = kx
+        self.ky = ky
+        self.delta_grid = delta_grid  # if None, computed from data in fit
+        self.maturity_grid = maturity_grid
+
+    def _fit(self, delta, maturity, vol):
+        delta = np.asarray(delta)
+        maturity = np.asarray(maturity)
+        vol = np.asarray(vol)
+
+        if self.delta_grid is None:
+            self.delta_grid = np.linspace(np.min(delta), np.max(delta), 11)
+        if self.maturity_grid is None:
+            self.maturity_grid = np.linspace(np.min(maturity), np.max(maturity), 11)
+
+        grid_vol = np.zeros((len(self.delta_grid), len(self.maturity_grid)))
+        counts = np.zeros_like(grid_vol, dtype=int)
+
+        delta_idx = np.digitize(delta, (self.delta_grid[:-1] + self.delta_grid[1:]) / 2)
+        maturity_idx = np.digitize(
+            maturity, (self.maturity_grid[:-1] + self.maturity_grid[1:]) / 2
+        )
+
+        # aggregate vols into grid
+        # TODO optimize the for loop
+        for i in range(len(vol)):
+            d_idx, m_idx = delta_idx[i], maturity_idx[i]
+            grid_vol[d_idx, m_idx] += vol[i]
+            counts[d_idx, m_idx] += 1
+
+        # take average
+        with np.errstate(invalid="ignore"):
+            grid_vol = grid_vol / counts
+            grid_vol[counts == 0] = np.nan  # leave empty where no data
+
+        # Fill missing values using griddata for interpolation
+        x, y = np.indices(grid_vol.shape)
+        x = x.flatten()
+        y = y.flatten()
+        v = grid_vol.flatten()
+        grid_vol[np.isnan(grid_vol)] = griddata(
+            (x[~np.isnan(v)], y[~np.isnan(v)]),
+            v[~np.isnan(v)],
+            (x[np.isnan(v)], y[np.isnan(v)]),
+            method="linear",
+        )
+
+        # fill boundary NaNs with nearest neighbor interpolation
+        x, y = np.indices(grid_vol.shape)
+        v = grid_vol.flatten()
+        x = x.flatten()
+        y = y.flatten()
+        grid_vol[np.isnan(grid_vol)] = griddata(
+            (x[~np.isnan(v)], y[~np.isnan(v)]),
+            v[~np.isnan(v)],
+            (x[np.isnan(v)], y[np.isnan(v)]),
+            method="nearest",
+        )
+
+        self.grid_vol = grid_vol
+
+        self._interp = RectBivariateSpline(
+            self.delta_grid, self.maturity_grid, grid_vol, kx=self.kx, ky=self.ky
+        )
+
+    def _predict(self, delta, maturity) -> np.ndarray:
+        return self._interp.ev(delta, maturity)
+
+
+class KernelVolSurface(VolSurface):
+    def __init__(self, bandwidth=None, kernel="gaussian"):
+        self.bandwidth = bandwidth
+        self.kernel = kernel
+
+    def _fit(self, delta, maturity, vol):
+        if self.bandwidth is None:
+            n = len(delta)
+            self.bandwidth = (
+                np.array([np.std(delta), np.std(maturity)]) * (n ** (-1 / 5)) * 1.06
+            )
+
+        self.model = KernelReg(
+            endog=vol,
+            exog=np.column_stack((delta, maturity)),
+            var_type="cc",
+            bw=self.bandwidth,
+        )
+
+    def _predict(self, delta, maturity) -> np.ndarray:
+        result, _ = self.model.fit(np.column_stack((delta, maturity)))
+        return result
+    
+class TrainedDecoderVolSurface(VolSurface):
+    def __init__(self, decoder, maturity_range, random_src=None, latent=None):
+        self.decoder = decoder
+        self.device = next(self.decoder.parameters()).device
+        self._fitted = True
+        self._maturity_range = maturity_range
+        self.random_src = random_src
+        self.latent = latent
+        if not (random_src or latent):
+            raise ValueError("Either random_src or latent must be provided.")
+        elif random_src and latent:
+            raise ValueError("Only one of random_src or latent can be provided.")
+        if random_src is not None:
+            self._latent = next(self.random_src)
+        elif latent is not None:
+            self._latent = self.latent
+
+    def refresh(self):
+        if self.random_src is None:
+            return
+        self._latent = next(self.random_src)
+
+    def _fit(self, delta, maturity, vol):
+        # This method is not used in this class
+        pass
+
+    def _predict(self, delta, maturity):
+        rand = torch.tensor(self._latent, dtype=torch.float32)
+        latent = rand.repeat(len(delta), 1)
+        delta = torch.tensor(delta, dtype=torch.float32).reshape(-1, 1)
+        maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1) / 365.0
+        z = torch.cat((latent, delta, maturity), dim=1).to(self.device)
+        return self.decoder(z).detach().cpu().numpy()
+
+
+class VAEVolSurface(VolSurface):
+    def __init__(self, vae_model, latent=None):
+        self.vae_model = vae_model
+        self.device = next(self.vae_model.parameters()).device
+        self._fitted = True
+        self.generator = self.vae_model.get_latent_generator()
+        self.latent = latent
+        if latent is not None:
+            self._latent = latent
+        else:
+            self._latent = next(self.generator)
+
+        self._maturity_range = (None, None)
+
+    def refresh(self):
+        if self.latent is not None:
+            return
+        self._latent = next(self.generator)
+    
+    def _fit(self, delta, maturity, vol):
+        # This method is not used in this class
+        pass
+
+    def _predict(self, delta, maturity):
+        latent = torch.tensor(self._latent, dtype=torch.float32).to(self.device)
+        return self.vae_model.generate(latent).detach().cpu().numpy()
+    
+
+class VAEPWVolSurface(VolSurface):
+    def __init__(self, vae_model, latent=None):
+        self.vae_model = vae_model
+        self.device = next(self.vae_model.parameters()).device
+        self._fitted = True
+        self.generator = self.vae_model.get_latent_generator()
+        self.latent = latent
+        if latent is not None:
+            self._latent = latent
+        else:
+            self._latent = next(self.generator)
+
+        self._maturity_range = (None, None)
+
+    def refresh(self):
+        if self.latent is not None:
+            return
+        self._latent = next(self.generator)
+    
+    def _fit(self, delta, maturity, vol):
+        # This method is not used in this class
+        pass
+
+    def _predict(self, delta, maturity):
+        rand = torch.tensor(self._latent, dtype=torch.float32)
+        latent = rand.repeat(len(delta), 1).to(self.device)
+        delta = torch.tensor(delta, dtype=torch.float32).reshape(-1, 1)
+        maturity = torch.tensor(maturity, dtype=torch.float32).reshape(-1, 1)
+        pw_grid = torch.cat((delta, maturity), dim=1).to(self.device)
+        return self.vae_model.generate(latent, pw_grid).detach().cpu().numpy()import torch
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+from torchvision.utils import save_image
+
+import ray
+from ray import tune
+from ray.tune.schedulers import ASHAScheduler
+from ray.tune import CLIReporter
+
+# system
+import argparse
+from dotenv import load_dotenv
+load_dotenv()
+import sys, os
+sys.path.insert(0, os.getenv('SRC_PATH'))
+
+# inner imports
+from src.models.vae import VAE
+from src.models.ldm import LDM, NoisePredictor
+from src.models.vae_pw import VAE_PW_II, VAE_PW_I
+from src.utils.yaml_helper import YamlParser
+from src.utils.logger import setup_logger
+
+# Set up logger
+logger = setup_logger(__name__, level="INFO")
+
+
+class Trainer(object):
+    def __init__(self, model_name):
+        self.model_name = model_name
+
+        # load config
+        self.path = "src/models/" + model_name + ".yaml"
+        try:
+            self.config = YamlParser(self.path).load_yaml()
+        except FileNotFoundError:
+            logger.error("Model configs not found")
+            return
+
+        # hyperparameters
+        self.train_param = self.config["train"]
+        self.batch_size = self.train_param["batch_size"]
+        self.epochs = self.train_param["epochs"]
+        self.learning_rate = self.train_param["learning_rate"]
+
+        self.network_param = self.config["network"]
+
+        self.hypertune_param = self.config["hypertune"]
+
+        # other
+        self.model_type = self.config["model"]["type"]
+        self.beta = self.config['model'].get("beta", 1.0)
+
+        device_name = "cpu"
+        if torch.cuda.is_available():
+            device_name = "cuda"
+        elif torch.mps.is_available():
+            device_name = "mps"
+        self.device = torch.device(device_name)
+        logger.info(f"Using device: {device_name}")
+
+    #### MODEL
+    # set config here only doing hypertune
+    def create_model(self, hyper_config=None):
+        network_param = self.network_param|hyper_config if hyper_config else self.network_param
+        train_param = self.train_param|hyper_config if hyper_config else self.train_param
+
+        if self.model_type.startswith("vae"):
+            match self.model_type:
+                case "vae":
+                    mdl = VAE
+                case "vae_pw_i":
+                    mdl = VAE_PW_I
+                case "vae_pw_ii":
+                    mdl = VAE_PW_II
+                case _:
+                    logger.error("Model not found")
+                    raise AssertionError("Model not found")
+            # check params
+            for key in ["input_dim", "hidden_dim", "latent_dim"]:
+                if key not in network_param:
+                    logger.error(f"Key '{key}' is missing in the network params.")
+                    raise AssertionError(
+                        f"Key '{key}' is missing in the network params."
+                    )
+
+            self.model = mdl(
+                network_param["input_dim"],
+                network_param["hidden_dim"],
+                network_param["latent_dim"],
+            ).to(self.device)
+            self.optimizer = optim.Adam(
+                self.model.parameters(), lr=train_param["learning_rate"]
+            )
+
+        elif self.model_type == "ldm":
+            for key in ["base", "latent_dim", "hidden_dim", "embedding_dim", "timesteps"]:
+                if key not in network_param:
+                    logger.error(f"Key '{key}' is missing in the network params.")
+                    raise AssertionError(
+                        f"Key '{key}' is missing in the network params."
+                    )
+
+            # Load base model (VAE here)
+            base_dict = YamlParser(
+                f"src/models/{network_param['base']}.yaml"
+            ).load_yaml()["network"]
+            self.base_dict = base_dict
+            assert (
+                base_dict["latent_dim"] == network_param["latent_dim"]
+            ), "Latent dim mismatch"
+
+            self.base_encoder = VAE(
+                base_dict["input_dim"],
+                base_dict["hidden_dim"],
+                base_dict["latent_dim"],
+            )
+            self.base_encoder.load_state_dict(
+                torch.load(f"params/{network_param['base']}.pth")
+            )
+            
+            self.model = LDM(autoencoder=self.base_encoder, config=network_param).to(self.device)
+            self.model.set_beta(network_param["timesteps"], self.device)
+            #### FIX: optimizer change
+            self.optimizer = optim.Adam(
+                self.model.parameters(), lr=train_param["learning_rate"]
+            )
+        # add other model types here
+        else:
+            logger.error("Model not found")
+            return
+
+    #### MODEL TRAIN
+    def load_model(self, path):
+        self.model.load_state_dict(torch.load(path))
+        logger.info(f"Model loaded from {path}")
+
+    def train(self, train_loader: DataLoader, echo=True):
+        self.model.train()
+        train_loss = 0
+        for batch_idx, data in enumerate(train_loader):
+            self.optimizer.zero_grad()
+
+            if self.model_type.startswith("vae_pw"):
+                pw_grid, pw_vol, surface = data
+                pw_grid = pw_grid.view(-1, 2).to(self.device)
+                surface = surface.view(-1, self.network_param["input_dim"]).to(self.device)
+                pw_vol = pw_vol.view(-1, 1).to(self.device)
+                pred, mean, logvar = self.model(surface, pw_grid)
+                loss = VAE_PW_II.loss_function(pred, pw_vol, mean, logvar, self.beta)
+
+            elif self.model_type == "vae":
+                data, _ = data
+                data = data.view(-1, self.network_param["input_dim"]).to(self.device)
+                x_recon, mean, logvar = self.model(data)
+                mdl = VAE 
+                loss = mdl.loss_function(x_recon, data, mean, logvar, self.beta)
+
+            elif self.model_type == "ldm":
+                data, _ = data
+                data = data.view(-1, self.base_dict["input_dim"]).to(self.device)
+                # sample a random timestep
+                t = torch.randint(
+                    0, self.network_param["timesteps"], (data.size(0),)
+                ).to(self.device)
+                
+                # Get loss from LDM
+                loss = self.model.get_loss(data, t)
+
+            # Add other model types here
+            else:
+                print("Model not found")
+                return
+
+            loss.backward()
+            train_loss += loss.item()
+            self.optimizer.step()
+        if echo:
+            logger.info(
+                f"Loss: {train_loss / len(train_loader.dataset):.4f}"
+            )
+        return train_loss
+
+    def evaluate(self, output_path=None):
+        self.model.eval()
+        with torch.no_grad():
+            if self.model_type == "vae" or self.model_type == "ldm":
+                sample = torch.randn(64, self.network_param["latent_dim"]).to(self.device)
+            elif self.model_type == "vae_pw_ii":
+                # todo sampling
+                pass
+            else:
+                sample = torch.randn(64, self.network_param["latent_dim"] + 2).to(self.device)
+            sample = self.model.decoder(sample).cpu()
+            # save_image(sample.view(64, 1, 28, 28), f"{output_path}/sample.png")
+
+    #### HYPERTUNE
+    # create hypertune config from yaml
+    @staticmethod
+    def make_hypertune_config(raw_config: dict):
+        hyper_config = {key: tune.choice(value) for key, value in raw_config.items()}
+        return hyper_config
+
+    def hyper_train(self, train_loader: DataLoader, hyper_config: dict):
+        if not hyper_config:
+            logger.error("Hyperparameter config is not set.")
+            raise AssertionError("Hyperparameter config is not set.")
+        self.create_model(hyper_config)
+        for epoch in range(self.epochs):
+            ###### FIX: logic change for different dataset (eg:batchsize should be included) ######
+            loss = self.train(train_loader)
+            try:
+                tune.report({'loss':loss})
+            except AttributeError:
+                ray.train.report(dict(loss=loss))
+            
+
+    def hypertune(self, train_loader: DataLoader):
+        reporter = CLIReporter(metric_columns=["loss", "training_iteration"])
+        scheduler = ASHAScheduler(metric="loss", mode="min")
+        print('Hypertune!!',self.make_hypertune_config(self.hypertune_param))
+        # Run the grid search
+        analysis = tune.run(
+            lambda config: self.hyper_train(train_loader, config),
+            config=self.make_hypertune_config(self.hypertune_param),
+            resources_per_trial={
+                "cpu": 1
+            },  # FIX: Allocate resources ---> shoule be available in yaml
+            num_samples=2,  # Number of samples per configuration
+            scheduler=scheduler,
+            progress_reporter=reporter,
+            verbose=1,
+        )
+
+        print("Best config:", analysis.get_best_config(metric="loss", mode="min"))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="vae_v1", help="Model name")
+    ## Train
+    parser.add_argument("--train", type=bool, default=False, help="Train model")
+    parser.add_argument("--load", type=bool, default=False, help="Load model")
+    parser.add_argument("--save", type=bool, default=False, help="Save model")
+
+    ## Hyperparameter tuning
+    parser.add_argument(
+        "--hypertune", type=bool, default=False, help="Hyperparameter tuning"
+    )
+
+    args = parser.parse_args()
+
+    trainer = Trainer(args.model)
+
+    if args.train:
+        trainer.create_model()
+
+        if args.load:
+            trainer.load_model(f"params/{trainer.model_name}.pth")
+        else:
+            print("Training from scratch")
+
+            # create dataset
+            transform = transforms.Compose([transforms.ToTensor()])
+            train_dataset = datasets.MNIST(
+                root="./data", train=True, transform=transform, download=True
+            )
+            train_loader = DataLoader(
+                dataset=train_dataset, batch_size=trainer.batch_size, shuffle=True
+            )
+
+            # train
+            for epoch in range(trainer.epochs):
+                logger.info(f"Epoch {epoch + 1}/{trainer.epochs}, ")
+                trainer.train(train_loader)
+
+            if args.save:
+                torch.save(
+                    trainer.model.state_dict(), f"params/{trainer.model_name}.pth"
+                )
+
+            print("Training complete.")
+
+        # evaluate
+        trainer.evaluate("output")
+
+    if args.hypertune:
+        # create dataset
+        transform = transforms.Compose([transforms.ToTensor()])
+        train_dataset = datasets.MNIST(
+            root="./data", train=True, transform=transform, download=True
+        )
+        train_loader = DataLoader(
+            dataset=train_dataset, batch_size=trainer.batch_size, shuffle=True
+        )
+
+        # hypertune
+        trainer.hypertune(train_loader)
+
+
